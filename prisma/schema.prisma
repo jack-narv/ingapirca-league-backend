@@ -1,0 +1,382 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model awards {
+  id        String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id String     @db.Uuid
+  type      award_type
+  player_id String?    @db.Uuid
+  players   players?   @relation(fields: [player_id], references: [id], onUpdate: NoAction, map: "fk_awards_player")
+  seasons   seasons    @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_awards_season")
+
+  @@unique([season_id, type], map: "uq_awards_unique")
+  @@index([season_id], map: "idx_awards_season")
+}
+
+model leagues {
+  id      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name    String    @db.VarChar(255)
+  country String    @db.VarChar(100)
+  city    String    @db.VarChar(100)
+  seasons seasons[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model match_events {
+  id                                              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  match_id                                        String           @db.Uuid
+  team_id                                         String           @db.Uuid
+  player_id                                       String           @db.Uuid
+  minute                                          Int
+  event_type                                      match_event_type
+  related_player_id                               String?          @db.Uuid
+  matches                                         matches          @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_events_match")
+  players_match_events_player_idToplayers         players          @relation("match_events_player_idToplayers", fields: [player_id], references: [id], onUpdate: NoAction, map: "fk_match_events_player")
+  players_match_events_related_player_idToplayers players?         @relation("match_events_related_player_idToplayers", fields: [related_player_id], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_match_events_related_player")
+  teams                                           teams            @relation(fields: [team_id], references: [id], onUpdate: NoAction, map: "fk_match_events_team")
+
+  @@index([match_id], map: "idx_match_events_match")
+  @@index([match_id, minute], map: "idx_match_events_minute")
+  @@index([player_id], map: "idx_match_events_player")
+  @@index([match_id, team_id], map: "idx_match_events_team")
+  @@index([event_type], map: "idx_match_events_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model match_lineup {
+  id           String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  match_id     String          @db.Uuid
+  team_id      String          @db.Uuid
+  player_id    String          @db.Uuid
+  shirt_number Int
+  position     player_position
+  is_starting  Boolean         @default(false)
+  submitted_by String          @db.Uuid
+  submitted_at DateTime        @default(now()) @db.Timestamp(6)
+  matches      matches         @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_lineup_match")
+  players      players         @relation(fields: [player_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_lineup_player")
+  users        users           @relation(fields: [submitted_by], references: [id], onUpdate: NoAction, map: "fk_match_lineup_submitted_by")
+  teams        teams           @relation(fields: [team_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_lineup_team")
+
+  @@unique([match_id, player_id], map: "uq_match_lineup_player")
+  @@index([match_id], map: "idx_match_lineup_match")
+  @@index([match_id, team_id], map: "idx_match_lineup_team")
+}
+
+model match_referees {
+  id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  match_id     String       @db.Uuid
+  referee_id   String       @db.Uuid
+  role         referee_role
+  observation  String?
+  submitted_at DateTime?    @db.Timestamp(6)
+  matches      matches      @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_referees_match")
+  referees     referees     @relation(fields: [referee_id], references: [id], onUpdate: NoAction, map: "fk_match_referees_referee")
+
+  @@unique([match_id, role], map: "uq_match_referee_role")
+  @@unique([match_id, referee_id], map: "uq_match_referee_unique")
+}
+
+model match_team_observations {
+  id           String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  match_id     String             @db.Uuid
+  team_id      String             @db.Uuid
+  submitted_by String             @db.Uuid
+  observation  String
+  submitted_at DateTime           @default(now()) @db.Timestamp(6)
+  status       observation_status @default(DRAFT)
+  matches      matches            @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_team_obs_match")
+  teams        teams              @relation(fields: [team_id], references: [id], onUpdate: NoAction, map: "fk_match_team_obs_team")
+  users        users              @relation(fields: [submitted_by], references: [id], onUpdate: NoAction, map: "fk_match_team_obs_user")
+
+  @@unique([match_id, team_id], map: "uq_match_team_obs_unique")
+  @@index([match_id], map: "idx_match_team_obs_match")
+  @@index([status], map: "idx_match_team_obs_status")
+  @@index([team_id], map: "idx_match_team_obs_team")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model matches {
+  id                                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id                         String                    @db.Uuid
+  home_team_id                      String                    @db.Uuid
+  away_team_id                      String                    @db.Uuid
+  venue_id                          String                    @db.Uuid
+  match_date                        DateTime                  @db.Timestamp(6)
+  status                            match_status              @default(SCHEDULED)
+  home_score                        Int                       @default(0)
+  away_score                        Int                       @default(0)
+  observations                      String?
+  match_events                      match_events[]
+  match_lineup                      match_lineup[]
+  match_referees                    match_referees[]
+  match_team_observations           match_team_observations[]
+  teams_matches_away_team_idToteams teams                     @relation("matches_away_team_idToteams", fields: [away_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_away_team")
+  teams_matches_home_team_idToteams teams                     @relation("matches_home_team_idToteams", fields: [home_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_home_team")
+  seasons                           seasons                   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_matches_season")
+  venues                            venues                    @relation(fields: [venue_id], references: [id], onUpdate: NoAction, map: "fk_matches_venue")
+  referee_ratings                   referee_ratings[]
+  sanctions                         sanctions[]
+
+  @@index([match_date], map: "idx_matches_date")
+  @@index([season_id], map: "idx_matches_season")
+  @@index([status], map: "idx_matches_status")
+  @@index([home_team_id, away_team_id], map: "idx_matches_teams")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model player_statistics {
+  player_id    String  @db.Uuid
+  season_id    String  @db.Uuid
+  goals        Int     @default(0)
+  assists      Int     @default(0)
+  yellow_cards Int     @default(0)
+  red_cards    Int     @default(0)
+  players      players @relation(fields: [player_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_player_statistics_player")
+  seasons      seasons @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_player_statistics_season")
+
+  @@id([player_id, season_id], map: "pk_player_statistics")
+  @@index([season_id, yellow_cards, red_cards], map: "idx_player_statistics_season_cards")
+  @@index([season_id, goals(sort: Desc)], map: "idx_player_statistics_season_goals")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model players {
+  id                                                   String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  first_name                                           String              @db.VarChar(200)
+  last_name                                            String              @db.VarChar(200)
+  date_of_birth                                        DateTime?           @db.Date
+  nationality                                          String?             @db.VarChar(100)
+  photo_url                                            String?
+  awards                                               awards[]
+  match_events_match_events_player_idToplayers         match_events[]      @relation("match_events_player_idToplayers")
+  match_events_match_events_related_player_idToplayers match_events[]      @relation("match_events_related_player_idToplayers")
+  match_lineup                                         match_lineup[]
+  player_statistics                                    player_statistics[]
+  sanctions                                            sanctions[]
+  team_player                                          team_player[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model referee_ratings {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  match_id     String   @db.Uuid
+  referee_id   String   @db.Uuid
+  team_id      String   @db.Uuid
+  rating       Int
+  comment      String?
+  submitted_at DateTime @default(now()) @db.Timestamp(6)
+  matches      matches  @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_referee_ratings_match")
+  referees     referees @relation(fields: [referee_id], references: [id], onUpdate: NoAction, map: "fk_referee_ratings_referee")
+  teams        teams    @relation(fields: [team_id], references: [id], onUpdate: NoAction, map: "fk_referee_ratings_team")
+
+  @@unique([match_id, referee_id, team_id], map: "uq_referee_rating_unique")
+  @@index([match_id], map: "idx_referee_ratings_match")
+  @@index([referee_id], map: "idx_referee_ratings_referee")
+  @@index([team_id], map: "idx_referee_ratings_team")
+}
+
+model referees {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  first_name      String            @db.VarChar(200)
+  last_name       String            @db.VarChar(200)
+  license_number  String?           @db.VarChar(100)
+  phone           String?           @db.VarChar(100)
+  is_active       Boolean           @default(true)
+  created_at      DateTime          @default(now()) @db.Timestamp(6)
+  match_referees  match_referees[]
+  referee_ratings referee_ratings[]
+}
+
+model roles {
+  id         Int          @id @db.SmallInt
+  name       String       @unique @db.VarChar(50)
+  user_roles user_roles[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model sanctions {
+  id               String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id        String        @db.Uuid
+  team_id          String?       @db.Uuid
+  player_id        String?       @db.Uuid
+  match_id         String?       @db.Uuid
+  type             sanction_type
+  reason           String
+  matches_affected Int?
+  start_date       DateTime?     @db.Date
+  end_date         DateTime?     @db.Date
+  matches          matches?      @relation(fields: [match_id], references: [id], onUpdate: NoAction, map: "fk_sanctions_match")
+  players          players?      @relation(fields: [player_id], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_sanctions_player")
+  seasons          seasons       @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_sanctions_season")
+  teams            teams?        @relation(fields: [team_id], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_sanctions_team")
+
+  @@index([match_id], map: "idx_sanctions_match")
+  @@index([player_id], map: "idx_sanctions_player")
+  @@index([season_id], map: "idx_sanctions_season")
+  @@index([team_id], map: "idx_sanctions_team")
+  @@index([type], map: "idx_sanctions_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model seasons {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  league_id         String              @db.Uuid
+  name              String              @db.VarChar(255)
+  start_date        DateTime            @db.Date
+  end_date          DateTime            @db.Date
+  status            season_status       @default(PLANNED)
+  awards            awards[]
+  matches           matches[]
+  player_statistics player_statistics[]
+  sanctions         sanctions[]
+  leagues           leagues             @relation(fields: [league_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_seasons_league")
+  standings         standings[]
+  teams             teams[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model standings {
+  id            String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id     String  @db.Uuid
+  team_id       String  @db.Uuid
+  played        Int     @default(0)
+  wins          Int     @default(0)
+  draws         Int     @default(0)
+  losses        Int     @default(0)
+  goals_for     Int     @default(0)
+  goals_against Int     @default(0)
+  points        Int     @default(0)
+  seasons       seasons @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_standings_season")
+  teams         teams   @relation(fields: [team_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_standings_team")
+
+  @@unique([season_id, team_id], map: "uq_standings_unique")
+  @@index([season_id, goals_for(sort: Desc)], map: "idx_standings_goals")
+  @@index([season_id, points(sort: Desc)], map: "idx_standings_points")
+  @@index([season_id], map: "idx_standings_season")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model team_player {
+  id           String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  team_id      String          @db.Uuid
+  player_id    String          @db.Uuid
+  shirt_number Int
+  position     player_position
+  joined_at    DateTime        @db.Date
+  left_at      DateTime?       @db.Date
+  players      players         @relation(fields: [player_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_team_player_player")
+  teams        teams           @relation(fields: [team_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_team_player_team")
+
+  @@unique([team_id, player_id, joined_at], map: "uq_team_player_active")
+  @@index([player_id], map: "idx_team_player_player")
+  @@index([team_id], map: "idx_team_player_team")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model teams {
+  id                                  String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id                           String                    @db.Uuid
+  name                                String                    @db.VarChar(255)
+  logo_url                            String?
+  founded_year                        Int?
+  match_events                        match_events[]
+  match_lineup                        match_lineup[]
+  match_team_observations             match_team_observations[]
+  matches_matches_away_team_idToteams matches[]                 @relation("matches_away_team_idToteams")
+  matches_matches_home_team_idToteams matches[]                 @relation("matches_home_team_idToteams")
+  referee_ratings                     referee_ratings[]
+  sanctions                           sanctions[]
+  standings                           standings[]
+  team_player                         team_player[]
+  seasons                             seasons                   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teams_season")
+}
+
+model user_roles {
+  user_id String @db.Uuid
+  role_id Int    @db.SmallInt
+  roles   roles  @relation(fields: [role_id], references: [id], onUpdate: NoAction, map: "fk_user_roles_role")
+  users   users  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_roles_user")
+
+  @@id([user_id, role_id])
+}
+
+model users {
+  id                      String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email                   String                    @unique @db.VarChar(255)
+  password_hash           String
+  full_name               String?                   @db.VarChar(255)
+  is_active               Boolean                   @default(true)
+  created_at              DateTime                  @default(now()) @db.Timestamp(6)
+  match_lineup            match_lineup[]
+  match_team_observations match_team_observations[]
+  user_roles              user_roles[]
+}
+
+model venues {
+  id      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name    String    @db.VarChar(255)
+  address String?
+  matches matches[]
+}
+
+enum award_type {
+  TOP_SCORER
+  MVP
+  FAIR_PLAY
+}
+
+enum match_event_type {
+  GOAL
+  YELLOW
+  RED
+  SUB_IN
+  SUB_OUT
+  OWN_GOAL
+}
+
+enum match_status {
+  SCHEDULED
+  PLAYING
+  PLAYED
+  CANCELED
+}
+
+enum observation_status {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+}
+
+enum player_position {
+  GK
+  DF
+  MF
+  FW
+}
+
+enum referee_role {
+  MAIN
+  ASSISTANT_1
+  ASSISTANT_2
+  FOURTH
+}
+
+enum sanction_type {
+  SUSPENSION
+  FINE
+  WARNING
+  POINT_DEDUCTION
+}
+
+enum season_status {
+  PLANNED
+  ACTIVE
+  FINISHED
+}
