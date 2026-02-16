@@ -19,7 +19,10 @@ export class SeasonsService {
     }) {
         return this.prisma.seasons.create({
             data: {
-                ...data,
+                league_id: data.league_id,
+                name: data.name,
+                start_date: new Date(data.start_date),
+                end_date: new Date(data.end_date),
                 status: 'PLANNED',
             }
         })
