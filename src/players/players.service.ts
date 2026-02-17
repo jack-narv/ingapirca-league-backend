@@ -113,4 +113,18 @@ export class PlayersService {
         });
     }
 
+    //Get players by team
+    async getByTeam(teamId: string) {
+        return this.prisma.team_player.findMany({
+            where: {
+            team_id: teamId,
+            left_at: null,
+            },
+            include: {
+            players: true,
+            },
+        });
+    }
+
+
 }

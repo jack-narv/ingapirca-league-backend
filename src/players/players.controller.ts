@@ -62,4 +62,10 @@ export class PlayersController {
     release(@Param('teamPlayerId') id: string){
         return this.service.releaseFromTeam(id);
     }
+
+    @Get('team/:teamId')
+    getByTeam(@Param('teamId') teamId: string) {
+        return this.service.getByTeam(teamId);
+    }
+
 }
