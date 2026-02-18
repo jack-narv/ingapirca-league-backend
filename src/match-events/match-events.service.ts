@@ -16,6 +16,14 @@ export class MatchEventsService {
     async getByMatch(matchId:string){
         return this.prisma.match_events.findMany({
             where: { match_id: matchId},
+            include: {
+                players_match_events_player_idToplayers: {
+                    select: {
+                        first_name: true,
+                        last_name: true,
+                    },
+                },
+            },
             orderBy: { minute: 'asc' },
         });
     }

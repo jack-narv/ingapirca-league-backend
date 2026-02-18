@@ -11,6 +11,14 @@ export class MatchLineupsService {
                 match_id: matchId,
                 team_id: teamId,
             },
+            include: {
+                players: {
+                    select: {
+                        first_name: true,
+                        last_name: true,
+                    },
+                },
+            },
             orderBy: [
                 {is_starting: 'desc'},
                 {position: 'asc'},
@@ -35,9 +43,15 @@ export class MatchLineupsService {
             where: {id: data.match_id},
         });
 
-        if(!match || match.status !== 'SCHEDULED'){
+        if(!match){
             throw new BadRequestException(
-                'Las alineaciones pueden ser enviadas antes de que el partido empiece.'
+                'Partido no encontrado.',
+            );
+        }
+
+        if(match.status === 'PLAYED'){
+            throw new BadRequestException(
+                'Las alineaciones no se pueden editar cuando el partido ya fue finalizado.',
             );
         }
 
