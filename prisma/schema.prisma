@@ -105,6 +105,7 @@ model match_team_observations {
 model matches {
   id                                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   season_id                         String                    @db.Uuid
+  category_id                       String?                   @db.Uuid
   home_team_id                      String                    @db.Uuid
   away_team_id                      String                    @db.Uuid
   venue_id                          String                    @db.Uuid
@@ -117,6 +118,7 @@ model matches {
   match_lineup                      match_lineup[]
   match_referees                    match_referees[]
   match_team_observations           match_team_observations[]
+  season_categories                 season_categories?        @relation(fields: [category_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_matches_category")
   teams_matches_away_team_idToteams teams                     @relation("matches_away_team_idToteams", fields: [away_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_away_team")
   teams_matches_home_team_idToteams teams                     @relation("matches_home_team_idToteams", fields: [home_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_home_team")
   seasons                           seasons                   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_matches_season")
@@ -126,6 +128,7 @@ model matches {
 
   @@index([match_date], map: "idx_matches_date")
   @@index([season_id], map: "idx_matches_season")
+  @@index([category_id], map: "idx_matches_category")
   @@index([status], map: "idx_matches_status")
   @@index([home_team_id, away_team_id], map: "idx_matches_teams")
 }
@@ -236,9 +239,24 @@ model seasons {
   matches           matches[]
   player_statistics player_statistics[]
   sanctions         sanctions[]
+  season_categories season_categories[]
   leagues           leagues             @relation(fields: [league_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_seasons_league")
   standings         standings[]
   teams             teams[]
+}
+
+model season_categories {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id       String    @db.Uuid
+  name            String    @db.VarChar(100)
+  sort_order      Int       @default(0)
+  is_active       Boolean   @default(true)
+  matches         matches[]
+  teams           teams[]
+  seasons         seasons   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_season_categories_season")
+
+  @@unique([season_id, name], map: "uq_season_categories_unique")
+  @@index([season_id], map: "idx_season_categories_season")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -283,6 +301,7 @@ model team_player {
 model teams {
   id                                  String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   season_id                           String                    @db.Uuid
+  category_id                         String?                   @db.Uuid
   name                                String                    @db.VarChar(255)
   logo_url                            String?
   founded_year                        Int?
@@ -293,9 +312,12 @@ model teams {
   matches_matches_home_team_idToteams matches[]                 @relation("matches_home_team_idToteams")
   referee_ratings                     referee_ratings[]
   sanctions                           sanctions[]
+  season_categories                   season_categories?        @relation(fields: [category_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_teams_category")
   standings                           standings[]
   team_player                         team_player[]
   seasons                             seasons                   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teams_season")
+
+  @@index([category_id], map: "idx_teams_category")
 }
 
 model user_roles {

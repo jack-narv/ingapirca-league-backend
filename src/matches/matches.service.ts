@@ -9,15 +9,31 @@ export class MatchesService {
                 private live: LiveGateway
     ){}
 
-    async findBySeason(seasonId: string){
+    async findBySeason(seasonId: string, categoryId?: string){
         return this.prisma.matches.findMany({
-            where: {season_id: seasonId},
+            where: {
+                season_id: seasonId,
+                ...(categoryId ? { category_id: categoryId } : {}),
+            },
             orderBy: {match_date: 'asc'},
         });
     }
 
+    async findById(matchId: string){
+        const match = await this.prisma.matches.findUnique({
+            where: {id: matchId},
+        });
+
+        if(!match){
+            throw new NotFoundException('Partido no encontrado');
+        }
+
+        return match;
+    }
+
     async createMatch(data:{
         season_id: string;
+        category_id?: string;
         home_team_id: string;
         away_team_id: string;
         venue_id: string;
@@ -43,9 +59,46 @@ export class MatchesService {
             );
         }
 
+        const homeTeam = teams.find((t) => t.id === data.home_team_id);
+        const awayTeam = teams.find((t) => t.id === data.away_team_id);
+
+        if (!homeTeam || !awayTeam) {
+            throw new BadRequestException('Equipos invalidos');
+        }
+
+        if (homeTeam.category_id !== awayTeam.category_id) {
+            throw new BadRequestException(
+                'Los equipos deben pertenecer a la misma categoria',
+            );
+        }
+
+        const effectiveCategoryId = data.category_id ?? homeTeam.category_id ?? null;
+
+        if (data.category_id) {
+            const category = await this.prisma.season_categories.findFirst({
+                where: {
+                    id: data.category_id,
+                    season_id: data.season_id,
+                },
+            });
+
+            if (!category) {
+                throw new BadRequestException(
+                    'La categoria no existe en la temporada',
+                );
+            }
+        }
+
+        if (homeTeam.category_id !== effectiveCategoryId) {
+            throw new BadRequestException(
+                'La categoria del partido no coincide con la categoria de los equipos',
+            );
+        }
+
         return this.prisma.matches.create({
             data: {
                 ...data,
+                category_id: effectiveCategoryId,
                 status: 'SCHEDULED',
                 home_score: 0,
                 away_score: 0,
@@ -110,6 +163,11 @@ export class MatchesService {
 
                 return updateMatch;
         }); 
+
+        this.live.broadcastScoreUpdate(matchId, {
+            homeScore,
+            awayScore,
+        });
 
         this.live.broadcastMatchFinish(matchId,{
                     homeScore,

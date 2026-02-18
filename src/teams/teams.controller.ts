@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
@@ -10,8 +10,11 @@ export class TeamsController {
 
     //PUBLIC - View teams by season
     @Get('season/:seasonId')
-    async getTeams(@Param('seasonId') seasonId:string){
-        return this.teamService.findAllBySeason(seasonId);
+    async getTeams(
+        @Param('seasonId') seasonId:string,
+        @Query('categoryId') categoryId?: string,
+    ){
+        return this.teamService.findAllBySeason(seasonId, categoryId);
     }
 
     // LEAGUE_ADMIN ONLY - Create Team
@@ -22,6 +25,7 @@ export class TeamsController {
         @Body()
         body: {
             season_id: string;
+            category_id?: string;
             name:string;
             founded_year?: number;
             logo_url?: string;

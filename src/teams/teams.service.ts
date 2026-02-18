@@ -7,14 +7,18 @@ export class TeamsService {
 
     }  
 
-    async findAllBySeason(seasonId: string){
+    async findAllBySeason(seasonId: string, categoryId?: string){
         return this.prisma.teams.findMany({
-            where: {season_id: seasonId},
+            where: {
+                season_id: seasonId,
+                ...(categoryId ? { category_id: categoryId } : {}),
+            },
         });
     }
 
     async createTeam(data:{
         season_id: string;
+        category_id?: string;
         name: string;
         founded_year?: number;
         logo_url?: string;
@@ -27,9 +31,23 @@ export class TeamsService {
             throw new BadRequestException('La temporada no existe');
         }
 
+        if (data.category_id) {
+            const category = await this.prisma.season_categories.findFirst({
+                where: {
+                    id: data.category_id,
+                    season_id: data.season_id,
+                },
+            });
+
+            if (!category) {
+                throw new BadRequestException('La categoria no existe en la temporada');
+            }
+        }
+
         const existing = await this.prisma.teams.findFirst({
             where: {
                 season_id: data.season_id,
+                category_id: data.category_id ?? null,
                 name: data.name,
             },
         });

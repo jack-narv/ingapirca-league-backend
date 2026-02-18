@@ -1,4 +1,4 @@
-import { SubscribeMessage, WebSocketGateway, WebSocketServer, MessageBody } from '@nestjs/websockets';
+import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
@@ -13,7 +13,7 @@ export class LiveGateway {
   //Client joins a match room
   @SubscribeMessage('joinMatch')
   handleJoin(
-    client: Socket,
+    @ConnectedSocket() client: Socket,
     @MessageBody() matchId: string,
   ){
     client.join(`match:${matchId}`);
@@ -22,7 +22,7 @@ export class LiveGateway {
   //Client leaves match room
   @SubscribeMessage('leaveMatch')
   handleLeave(
-    client: Socket,
+    @ConnectedSocket() client: Socket,
     @MessageBody() matchId: string,
   ){
     client.leave(`match:${matchId}`);
@@ -34,7 +34,11 @@ export class LiveGateway {
   broadcastMatchStart(matchId: string){
     this.server
       .to(`match:${matchId}`)
-      .emit('mathc_started',{matchId});
+      .emit('match_started', {
+        matchId,
+        status: 'PLAYING',
+        startedAt: new Date(),
+      });
   }
 
   broadcastMatchEvent(matchId:string, event:any){
@@ -52,6 +56,11 @@ export class LiveGateway {
   broadcastMatchFinish(matchId:string, data: any){
     this.server
       .to(`match:${matchId}`)
-      .emit('match_finished', data);
+      .emit('match_finished', {
+      matchId,
+      ...data,
+      status: 'PLAYED',
+      finishedAt: new Date(),
+    });
   }
 }

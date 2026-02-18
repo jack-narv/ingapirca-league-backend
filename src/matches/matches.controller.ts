@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { MatchesService } from './matches.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
@@ -10,18 +10,27 @@ export class MatchesController {
 
     //PUBLIC
     @Get('season/:seasonId')
-    getBySeason(@Param('seasonId') seasonId:string){
-        return this.matchesService.findBySeason(seasonId);
+    getBySeason(
+        @Param('seasonId') seasonId:string,
+        @Query('categoryId') categoryId?: string,
+    ){
+        return this.matchesService.findBySeason(seasonId, categoryId);
+    }
+
+    @Get(':id')
+    getById(@Param('id') id: string){
+        return this.matchesService.findById(id);
     }
 
     //ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'ADMIN_LEAGUE')
+    @Roles('ADMIN', 'LEAGUE_ADMIN')
     @Post()
     createMatch(
         @Body()
         body: {
             season_id: string;
+            category_id?: string;
             home_team_id: string;
             away_team_id: string;
             venue_id: string;
@@ -33,6 +42,15 @@ export class MatchesController {
             ...body,
             match_date: new Date(body.match_date),
         });
+    }
+
+
+    //ADMIN / LEAGUE_ADMIN
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Patch(':id/start')
+    startMatch(@Param('id') id: string) {
+        return this.matchesService.startMatch(id);
     }
 
 

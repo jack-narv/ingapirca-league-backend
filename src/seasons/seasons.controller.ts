@@ -14,6 +14,12 @@ export class SeasonsController {
         return this.seasonService.findByLeague(leagueId);
     }
 
+    //PUBLIC
+    @Get(':seasonId/categories')
+    getCategories(@Param('seasonId') seasonId: string){
+        return this.seasonService.findCategoriesBySeason(seasonId);
+    }
+
     // ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('ADMIN', 'LEAGUE_ADMIN')
@@ -28,5 +34,24 @@ export class SeasonsController {
         },
     ) {
         return this.seasonService.create(body);
+    }
+
+    // ADMIN / LEAGUE_ADMIN
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Post(':seasonId/categories')
+    createCategory(
+        @Param('seasonId') seasonId: string,
+        @Body()
+        body:{
+            name: string;
+            sort_order?: number;
+        },
+    ) {
+        return this.seasonService.createCategory({
+            season_id: seasonId,
+            name: body.name,
+            sort_order: body.sort_order,
+        });
     }
 }
