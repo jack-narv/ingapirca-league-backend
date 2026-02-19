@@ -93,7 +93,7 @@ model match_team_observations {
   status       observation_status @default(DRAFT)
   matches      matches            @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_team_obs_match")
   teams        teams              @relation(fields: [team_id], references: [id], onUpdate: NoAction, map: "fk_match_team_obs_team")
-  users        users              @relation(fields: [submitted_by], references: [id], onUpdate: NoAction, map: "fk_match_team_obs_user")
+  players      players            @relation(fields: [submitted_by], references: [id], onUpdate: NoAction, map: "fk_match_team_obs_player")
 
   @@unique([match_id, team_id], map: "uq_match_team_obs_unique")
   @@index([match_id], map: "idx_match_team_obs_match")
@@ -117,7 +117,6 @@ model matches {
   match_events                      match_events[]
   match_lineup                      match_lineup[]
   match_referees                    match_referees[]
-  match_team_observations           match_team_observations[]
   season_categories                 season_categories?        @relation(fields: [category_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_matches_category")
   teams_matches_away_team_idToteams teams                     @relation("matches_away_team_idToteams", fields: [away_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_away_team")
   teams_matches_home_team_idToteams teams                     @relation("matches_home_team_idToteams", fields: [home_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_home_team")
@@ -125,6 +124,7 @@ model matches {
   venues                            venues                    @relation(fields: [venue_id], references: [id], onUpdate: NoAction, map: "fk_matches_venue")
   referee_ratings                   referee_ratings[]
   sanctions                         sanctions[]
+  matchTeamObservations             match_team_observations[]
 
   @@index([match_date], map: "idx_matches_date")
   @@index([season_id], map: "idx_matches_season")
@@ -151,16 +151,17 @@ model player_statistics {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model players {
-  id                                                   String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  first_name                                           String              @db.VarChar(200)
-  last_name                                            String              @db.VarChar(200)
-  date_of_birth                                        DateTime?           @db.Date
-  nationality                                          String?             @db.VarChar(100)
+  id                                                   String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  first_name                                           String                    @db.VarChar(200)
+  last_name                                            String                    @db.VarChar(200)
+  date_of_birth                                        DateTime?                 @db.Date
+  nationality                                          String?                   @db.VarChar(100)
   photo_url                                            String?
   awards                                               awards[]
-  match_events_match_events_player_idToplayers         match_events[]      @relation("match_events_player_idToplayers")
-  match_events_match_events_related_player_idToplayers match_events[]      @relation("match_events_related_player_idToplayers")
+  match_events_match_events_player_idToplayers         match_events[]            @relation("match_events_player_idToplayers")
+  match_events_match_events_related_player_idToplayers match_events[]            @relation("match_events_related_player_idToplayers")
   match_lineup                                         match_lineup[]
+  match_team_observations                              match_team_observations[]
   player_statistics                                    player_statistics[]
   sanctions                                            sanctions[]
   team_player                                          team_player[]
@@ -246,14 +247,14 @@ model seasons {
 }
 
 model season_categories {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  season_id       String    @db.Uuid
-  name            String    @db.VarChar(100)
-  sort_order      Int       @default(0)
-  is_active       Boolean   @default(true)
-  matches         matches[]
-  teams           teams[]
-  seasons         seasons   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_season_categories_season")
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id  String    @db.Uuid
+  name       String    @db.VarChar(100)
+  sort_order Int       @default(0)
+  is_active  Boolean   @default(true)
+  matches    matches[]
+  teams      teams[]
+  seasons    seasons   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_season_categories_season")
 
   @@unique([season_id, name], map: "uq_season_categories_unique")
   @@index([season_id], map: "idx_season_categories_season")
@@ -307,7 +308,6 @@ model teams {
   founded_year                        Int?
   match_events                        match_events[]
   match_lineup                        match_lineup[]
-  match_team_observations             match_team_observations[]
   matches_matches_away_team_idToteams matches[]                 @relation("matches_away_team_idToteams")
   matches_matches_home_team_idToteams matches[]                 @relation("matches_home_team_idToteams")
   referee_ratings                     referee_ratings[]
@@ -316,6 +316,7 @@ model teams {
   standings                           standings[]
   team_player                         team_player[]
   seasons                             seasons                   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teams_season")
+  matchTeamObservations               match_team_observations[]
 
   @@index([category_id], map: "idx_teams_category")
 }
@@ -330,15 +331,14 @@ model user_roles {
 }
 
 model users {
-  id                      String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  email                   String                    @unique @db.VarChar(255)
-  password_hash           String
-  full_name               String?                   @db.VarChar(255)
-  is_active               Boolean                   @default(true)
-  created_at              DateTime                  @default(now()) @db.Timestamp(6)
-  match_lineup            match_lineup[]
-  match_team_observations match_team_observations[]
-  user_roles              user_roles[]
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email         String         @unique @db.VarChar(255)
+  password_hash String
+  full_name     String?        @db.VarChar(255)
+  is_active     Boolean        @default(true)
+  created_at    DateTime       @default(now()) @db.Timestamp(6)
+  match_lineup  match_lineup[]
+  user_roles    user_roles[]
 }
 
 model venues {
