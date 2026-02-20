@@ -17,6 +17,7 @@ import { LiveModule } from './live/live.module';
 import { SanctionsModule } from './sanctions/sanctions.module';
 import { RefereesModule } from './referees/referees.module';
 import { VenuesModule } from './venues/venues.module';
+import { MatchObservationsModule } from './match-observations/match-observations.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { VenuesModule } from './venues/venues.module';
     SanctionsModule,
     RefereesModule,
     VenuesModule,
+    MatchObservationsModule,
   ],
   controllers: [HealthController],
   providers: [LiveGateway],
