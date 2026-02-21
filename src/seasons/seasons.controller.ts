@@ -29,8 +29,8 @@ export class SeasonsController {
         body:{
             league_id: string;
             name: string;
-            start_date: Date;
-            end_date: Date;
+            start_date: string;
+            end_date: string;
         },
     ) {
         return this.seasonService.create(body);

@@ -34,12 +34,16 @@ export class MatchesService {
     async createMatch(data:{
         season_id: string;
         category_id?: string;
+        journal: string;
         home_team_id: string;
         away_team_id: string;
         venue_id: string;
         match_date: Date;
         observations?: string;
     }){
+        const normalizedJournal = this.normalizeJournal(data.journal);
+        const journalValues = this.getEquivalentJournalValues(normalizedJournal);
+
         if(data.home_team_id === data.away_team_id){
             throw new BadRequestException(
                 'Equipo local y visitante deben ser diferentes',
@@ -95,9 +99,38 @@ export class MatchesService {
             );
         }
 
+        const teamsInJournal = await this.prisma.matches.findFirst({
+            where: {
+                season_id: data.season_id,
+                category_id: effectiveCategoryId,
+                journal: { in: journalValues },
+                status: { not: 'CANCELED' },
+                OR: [
+                    {
+                        home_team_id: {
+                            in: [data.home_team_id, data.away_team_id],
+                        },
+                    },
+                    {
+                        away_team_id: {
+                            in: [data.home_team_id, data.away_team_id],
+                        },
+                    },
+                ],
+            },
+            select: { id: true },
+        });
+
+        if (teamsInJournal) {
+            throw new BadRequestException(
+                'Uno de los equipos ya tiene un partido en esta jornada.',
+            );
+        }
+
         return this.prisma.matches.create({
             data: {
                 ...data,
+                journal: normalizedJournal,
                 category_id: effectiveCategoryId,
                 status: 'SCHEDULED',
                 home_score: 0,
@@ -159,7 +192,9 @@ export class MatchesService {
                     },
                 });
 
-                await this.updateStandings(tx, updateMatch);
+                if (!this.isKnockoutJournal(updateMatch.journal)) {
+                    await this.updateStandings(tx, updateMatch);
+                }
 
                 return updateMatch;
         }); 
@@ -281,5 +316,51 @@ export class MatchesService {
                 },
             }),
         ]);
+    }
+
+    private normalizeJournal(journal: string) {
+        const value = journal?.trim();
+
+        if (!value) {
+            throw new BadRequestException('La jornada es obligatoria.');
+        }
+
+        if (/^\d+$/.test(value)) {
+            return `JOURNAL ${parseInt(value, 10)}`;
+        }
+
+        const leagueMatch = value.match(/^JOURNAL\s+(\d+)$/i);
+        if (leagueMatch) {
+            return `JOURNAL ${parseInt(leagueMatch[1], 10)}`;
+        }
+
+        return value.toUpperCase();
+    }
+
+    private isKnockoutJournal(journal?: string | null) {
+        if (!journal) {
+            return false;
+        }
+
+        if (/^\d+$/.test(journal)) {
+            return false;
+        }
+
+        if (/^JOURNAL\s+\d+$/i.test(journal.trim())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private getEquivalentJournalValues(journal: string) {
+        const values = new Set<string>([journal]);
+
+        const leagueMatch = journal.match(/^JOURNAL\s+(\d+)$/i);
+        if (leagueMatch) {
+            values.add(String(parseInt(leagueMatch[1], 10)));
+        }
+
+        return Array.from(values);
     }
 }

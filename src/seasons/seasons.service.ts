@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { parseDateOnlyUtc } from 'src/date-time.util';
 
 @Injectable()
 export class SeasonsService {
@@ -14,15 +15,15 @@ export class SeasonsService {
     create(data: {
         league_id: string;
         name: string;
-        start_date: Date;
-        end_date: Date;
+        start_date: string | Date;
+        end_date: string | Date;
     }) {
         return this.prisma.seasons.create({
             data: {
                 league_id: data.league_id,
                 name: data.name,
-                start_date: new Date(data.start_date),
-                end_date: new Date(data.end_date),
+                start_date: parseDateOnlyUtc(data.start_date),
+                end_date: parseDateOnlyUtc(data.end_date),
                 status: 'PLANNED',
             },
         });

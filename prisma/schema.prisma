@@ -122,6 +122,7 @@ model matches {
   id                                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   season_id                         String                    @db.Uuid
   category_id                       String?                   @db.Uuid
+  journal                           String?                   @db.VarChar(100)
   home_team_id                      String                    @db.Uuid
   away_team_id                      String                    @db.Uuid
   venue_id                          String                    @db.Uuid
@@ -146,6 +147,7 @@ model matches {
   @@index([match_date], map: "idx_matches_date")
   @@index([season_id], map: "idx_matches_season")
   @@index([category_id], map: "idx_matches_category")
+  @@index([journal], map: "idx_matches_journal")
   @@index([status], map: "idx_matches_status")
   @@index([home_team_id, away_team_id], map: "idx_matches_teams")
 }

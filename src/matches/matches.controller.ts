@@ -3,6 +3,7 @@ import { MatchesService } from './matches.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { Roles } from 'src/auth/roles/roles.decorator';
+import { parseEcuadorDateTimeToUtc } from 'src/date-time.util';
 
 @Controller('matches')
 export class MatchesController {
@@ -31,6 +32,7 @@ export class MatchesController {
         body: {
             season_id: string;
             category_id?: string;
+            journal: string;
             home_team_id: string;
             away_team_id: string;
             venue_id: string;
@@ -40,7 +42,7 @@ export class MatchesController {
     ){
         return this.matchesService.createMatch({
             ...body,
-            match_date: new Date(body.match_date),
+            match_date: parseEcuadorDateTimeToUtc(body.match_date),
         });
     }
 

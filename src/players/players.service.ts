@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { parseDateOnlyUtc } from 'src/date-time.util';
 
 @Injectable()
 export class PlayersService {
@@ -39,7 +40,7 @@ export class PlayersService {
             where:{
                 first_name: data.first_name,
                 last_name: data.last_name,
-                date_of_birth: new Date(data.date_of_birth),
+                date_of_birth: parseDateOnlyUtc(data.date_of_birth),
             },
         });
 
@@ -52,7 +53,7 @@ export class PlayersService {
         return this.prisma.players.create({
             data:{
                 ...data,
-                date_of_birth: new Date(data.date_of_birth),
+                date_of_birth: parseDateOnlyUtc(data.date_of_birth),
             },
         });
     }
