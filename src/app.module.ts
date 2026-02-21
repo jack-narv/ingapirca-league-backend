@@ -18,6 +18,7 @@ import { SanctionsModule } from './sanctions/sanctions.module';
 import { RefereesModule } from './referees/referees.module';
 import { VenuesModule } from './venues/venues.module';
 import { MatchObservationsModule } from './match-observations/match-observations.module';
+import { SeasonCategoriesModule } from './season-categories/season-categories.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { MatchObservationsModule } from './match-observations/match-observations
     RefereesModule,
     VenuesModule,
     MatchObservationsModule,
+    SeasonCategoriesModule,
   ],
   controllers: [HealthController],
   providers: [LiveGateway],
