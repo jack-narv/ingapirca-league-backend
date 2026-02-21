@@ -19,6 +19,7 @@ import { RefereesModule } from './referees/referees.module';
 import { VenuesModule } from './venues/venues.module';
 import { MatchObservationsModule } from './match-observations/match-observations.module';
 import { SeasonCategoriesModule } from './season-categories/season-categories.module';
+import { StandingsModule } from './standings/standings.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { SeasonCategoriesModule } from './season-categories/season-categories.mo
     VenuesModule,
     MatchObservationsModule,
     SeasonCategoriesModule,
+    StandingsModule,
   ],
   controllers: [HealthController],
   providers: [LiveGateway],
