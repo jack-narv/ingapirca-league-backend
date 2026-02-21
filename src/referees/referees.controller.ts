@@ -4,7 +4,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
 import { Roles } from 'src/auth/roles/roles.decorator';
 import { AssignRefereeDto } from './dto/assign-referee.dto';
-import { RateRefereeDto } from './dto/rate-referee.dto';
+import { CreateRefereeDto } from './dto/create-referee.dto';
 
 @Controller('referees')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -13,13 +13,13 @@ export class RefereesController {
     constructor(private service: RefereesService){}
 
     @Post()
-    create(@Body() body: any){
+    create(@Body() body: CreateRefereeDto){
         return this.service.create(body);
     }
 
-    @Get()
-    findAll(){
-        return this.service.findAll();
+    @Get('season/:seasonId')
+    findBySeason(@Param('seasonId') seasonId: string){
+        return this.service.findAllBySeason(seasonId);
     }
 
     @Patch(':id/deactivate')
@@ -32,9 +32,14 @@ export class RefereesController {
         return this.service.assignToMatch(body);
     }
 
-    @Post('rate')
-    rate(@Body() body: RateRefereeDto){
-        return this.service.rateReferee(body);
+    @Post('match-referees')
+    assignMatchReferee(@Body() body: AssignRefereeDto){
+        return this.service.assignToMatch(body);
+    }
+
+    @Post('match-referees/assign')
+    assignMatchRefereeLegacy(@Body() body: AssignRefereeDto){
+        return this.service.assignToMatch(body);
     }
 
     @Patch('match-referees/:id/observation')
@@ -43,6 +48,11 @@ export class RefereesController {
     @Body('observation') observation: string,
     ) {
         return this.service.submitObservation(id, observation);
+    }
+
+    @Get('match/:matchId')
+    getByMatch(@Param('matchId') matchId: string) {
+        return this.service.getByMatch(matchId);
     }
 
     @Get(':id/matches')
