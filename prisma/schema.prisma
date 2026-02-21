@@ -101,6 +101,22 @@ model match_team_observations {
   @@index([team_id], map: "idx_match_team_obs_team")
 }
 
+model match_referee_observations {
+  id           String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  match_id     String             @db.Uuid
+  referee_id   String             @db.Uuid
+  observation  String
+  submitted_at DateTime           @default(now()) @db.Timestamp(6)
+  status       observation_status @default(DRAFT)
+  matches      matches            @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_referee_obs_match")
+  referees     referees           @relation(fields: [referee_id], references: [id], onUpdate: NoAction, map: "fk_match_referee_obs_referee")
+
+  @@unique([match_id, referee_id], map: "uq_match_referee_obs_unique")
+  @@index([match_id], map: "idx_match_referee_obs_match")
+  @@index([referee_id], map: "idx_match_referee_obs_referee")
+  @@index([status], map: "idx_match_referee_obs_status")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model matches {
   id                                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -125,6 +141,7 @@ model matches {
   referee_ratings                   referee_ratings[]
   sanctions                         sanctions[]
   matchTeamObservations             match_team_observations[]
+  matchRefereeObservations          match_referee_observations[]
 
   @@index([match_date], map: "idx_matches_date")
   @@index([season_id], map: "idx_matches_season")
@@ -196,6 +213,7 @@ model referees {
   is_active       Boolean           @default(true)
   created_at      DateTime          @default(now()) @db.Timestamp(6)
   match_referees  match_referees[]
+  match_referee_observations match_referee_observations[]
   referee_ratings referee_ratings[]
   seasons         seasons           @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_referees_season")
 

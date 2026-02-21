@@ -11,9 +11,9 @@ export class RefereeRatingsService {
     constructor(private prisma: PrismaService) {}
 
     async create(data: CreateRefereeRatingDto) {
-        if (data.rating < 0 || data.rating > 10) {
+        if (data.rating < 1 || data.rating > 10) {
             throw new BadRequestException(
-                'La calificacion debe estar entre 0 y 10.',
+                'La calificacion debe estar entre 1 y 10.',
             );
         }
 
