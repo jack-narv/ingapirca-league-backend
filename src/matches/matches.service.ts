@@ -165,7 +165,14 @@ export class MatchesService {
         return matchUpdate;
     }
 
-    async finishMatch(matchId: string, homeScore: number, awayScore:number, observations?:string){
+    async finishMatch(
+        matchId: string,
+        homeScore: number,
+        awayScore: number,
+        observations?: string,
+        bestPlayerId?: string,
+        bestGoalkeeperId?: string,
+    ){
         
         const result = await this.prisma.$transaction(async (tx)=>{
                 const match = await tx.matches.findUnique({
@@ -182,13 +189,47 @@ export class MatchesService {
                     );
                 }
 
+                if (bestPlayerId) {
+                    const bestPlayerInLineup = await tx.match_lineup.findFirst({
+                        where: {
+                            match_id: matchId,
+                            player_id: bestPlayerId,
+                        },
+                        select: { id: true },
+                    });
+
+                    if (!bestPlayerInLineup) {
+                        throw new BadRequestException(
+                            'El mejor jugador debe estar en la alineacion del partido.',
+                        );
+                    }
+                }
+
+                if (bestGoalkeeperId) {
+                    const bestGoalkeeperInLineup = await tx.match_lineup.findFirst({
+                        where: {
+                            match_id: matchId,
+                            player_id: bestGoalkeeperId,
+                        },
+                        select: { id: true },
+                    });
+
+                    if (!bestGoalkeeperInLineup) {
+                        throw new BadRequestException(
+                            'El mejor arquero debe estar en la alineacion del partido.',
+                        );
+                    }
+                }
+
                 const updateMatch = await tx.matches.update({
                     where: {id: matchId},
                     data: {
                         status: 'PLAYED',
                         home_score: homeScore,
                         away_score: awayScore,
-                        observations
+                        observations,
+                        best_player_id: bestPlayerId ?? null,
+                        best_goalkeeper_id: bestGoalkeeperId ?? null,
                     },
                 });
 

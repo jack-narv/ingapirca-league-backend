@@ -123,6 +123,8 @@ model matches {
   season_id                         String                    @db.Uuid
   category_id                       String?                   @db.Uuid
   journal                           String?                   @db.VarChar(100)
+  best_player_id                    String?                   @db.Uuid
+  best_goalkeeper_id                String?                   @db.Uuid
   home_team_id                      String                    @db.Uuid
   away_team_id                      String                    @db.Uuid
   venue_id                          String                    @db.Uuid
@@ -135,6 +137,8 @@ model matches {
   match_lineup                      match_lineup[]
   match_referees                    match_referees[]
   season_categories                 season_categories?        @relation(fields: [category_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_matches_category")
+  players_matches_best_goalkeeper_idToplayers players?       @relation("matches_best_goalkeeper_idToplayers", fields: [best_goalkeeper_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_matches_best_goalkeeper")
+  players_matches_best_player_idToplayers     players?       @relation("matches_best_player_idToplayers", fields: [best_player_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_matches_best_player")
   teams_matches_away_team_idToteams teams                     @relation("matches_away_team_idToteams", fields: [away_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_away_team")
   teams_matches_home_team_idToteams teams                     @relation("matches_home_team_idToteams", fields: [home_team_id], references: [id], onUpdate: NoAction, map: "fk_matches_home_team")
   seasons                           seasons                   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_matches_season")
@@ -148,6 +152,8 @@ model matches {
   @@index([season_id], map: "idx_matches_season")
   @@index([category_id], map: "idx_matches_category")
   @@index([journal], map: "idx_matches_journal")
+  @@index([best_player_id], map: "idx_matches_best_player")
+  @@index([best_goalkeeper_id], map: "idx_matches_best_goalkeeper")
   @@index([status], map: "idx_matches_status")
   @@index([home_team_id, away_team_id], map: "idx_matches_teams")
 }
@@ -177,6 +183,8 @@ model players {
   nationality                                          String?                   @db.VarChar(100)
   photo_url                                            String?
   awards                                               awards[]
+  matches_matches_best_goalkeeper_idToplayers          matches[]                 @relation("matches_best_goalkeeper_idToplayers")
+  matches_matches_best_player_idToplayers              matches[]                 @relation("matches_best_player_idToplayers")
   match_events_match_events_player_idToplayers         match_events[]            @relation("match_events_player_idToplayers")
   match_events_match_events_related_player_idToplayers match_events[]            @relation("match_events_related_player_idToplayers")
   match_lineup                                         match_lineup[]

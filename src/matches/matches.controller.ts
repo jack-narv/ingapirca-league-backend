@@ -67,6 +67,8 @@ export class MatchesController {
             home_score: number;
             away_score: number;
             observations?: string;
+            best_player_id?: string;
+            best_goalkeeper_id?: string;
         },
     ) {
         return this.matchesService.finishMatch(
@@ -74,6 +76,8 @@ export class MatchesController {
             body.home_score,
             body.away_score,
             body.observations,
+            body.best_player_id,
+            body.best_goalkeeper_id,
         );
     }
 
