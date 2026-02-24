@@ -37,7 +37,8 @@ export class MatchEventsService {
         event_type:
             | 'GOAL'
             | 'YELLOW'
-            | 'RED'
+            | 'DOBLE_YELLOW_RED'
+            | 'RED_DIRECT'
             | 'SUB_IN'
             | 'SUB_OUT'
             | 'OWN_GOAL';
@@ -127,9 +128,13 @@ export class MatchEventsService {
         return result.event;
     }
 
-     isCardEvent(type: string,): type is 'YELLOW' | 'RED' 
+     isCardEvent(type: string,): type is 'YELLOW' | 'DOBLE_YELLOW_RED' | 'RED_DIRECT' 
      {
-        return type === 'YELLOW' || type === 'RED';
+        return (
+            type === 'YELLOW' ||
+            type === 'DOBLE_YELLOW_RED' ||
+            type === 'RED_DIRECT'
+        );
      }
 
     //SCORE UPDATE
@@ -176,7 +181,11 @@ export class MatchEventsService {
         const stats = {
             goals: data.event_type === 'GOAL' ? 1 : 0,
             yellow_cards: data.event_type === 'YELLOW' ? 1 : 0,
-            red_cards: data.event_type === 'RED' ? 1 : 0,
+            red_cards:
+                data.event_type === 'DOBLE_YELLOW_RED' ||
+                data.event_type === 'RED_DIRECT'
+                    ? 1
+                    : 0,
         };
 
         if(

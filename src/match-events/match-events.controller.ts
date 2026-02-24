@@ -28,7 +28,8 @@ export class MatchEventsController {
             event_type:
                 | 'GOAL'
                 | 'YELLOW'
-                | 'RED'
+                | 'DOBLE_YELLOW_RED'
+                | 'RED_DIRECT'
                 | 'SUB_IN'
                 | 'SUB_OUT'
                 | 'OWN_GOAL'

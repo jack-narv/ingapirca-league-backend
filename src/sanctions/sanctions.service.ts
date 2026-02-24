@@ -10,14 +10,14 @@ export class SanctionsService {
         player_id: string;
         team_id: string;
         season_id: string;
-        event_type: 'YELLOW' | 'RED';
+        event_type: 'YELLOW' | 'DOBLE_YELLOW_RED' | 'RED_DIRECT';
     }){
         if(data.event_type === 'YELLOW'){
             await this.handleYellow(data);
         }
 
-        if(data.event_type === 'RED'){
-            await this.handleRed(data);
+        if(data.event_type === 'RED_DIRECT'){
+            await this.handleRedDirect(data);
         }
     }
 
@@ -37,7 +37,7 @@ export class SanctionsService {
             await this.createSuspension({
                 ...data,
                 reason: 'Dos amarillas en el mismo partido',
-                matchs: 1,
+                matches: 1,
             });
 
             return;
@@ -65,8 +65,8 @@ export class SanctionsService {
     }
 
 
-    //RED CARD LOGIC
-    private async handleRed(data: any){
+    //DIRECT RED LOGIC
+    private async handleRedDirect(data: any){
         await this.createSuspension({
             ...data,
             reason: 'Roja directa',
@@ -90,9 +90,27 @@ export class SanctionsService {
                 match_id: data.match_id,
                 type: 'SUSPENSION',
             },
+            select: {
+                id: true,
+                matches_affected: true,
+            },
         });
 
-        if(exists) return;
+        if(exists){
+            const currentMatches = exists.matches_affected ?? 0;
+
+            if(data.matches > currentMatches){
+                await this.prisma.sanctions.update({
+                    where: { id: exists.id },
+                    data: {
+                        reason: data.reason,
+                        matches_affected: data.matches,
+                    },
+                });
+            }
+
+            return;
+        }
 
         await this.prisma.sanctions.create({
             data: {
