@@ -15,6 +15,26 @@ export class VenuesService {
     });
   }
 
+  findBySeason(seasonId: string) {
+    return this.prisma.venues.findMany({
+      where: {
+        season_venues: {
+          some: {
+            season_id: seasonId,
+          },
+        },
+      },
+      include: {
+        season_venues: {
+          select: {
+            season_id: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findOne(id: string) {
     const venue = await this.prisma.venues.findUnique({
       where: { id },
@@ -27,17 +47,50 @@ export class VenuesService {
     return venue;
   }
 
-  async create(data: { name: string; address?: string }) {
-    const exists = await this.prisma.venues.findFirst({
-      where: { name: data.name },
+  async create(data: { season_id: string; name: string; address?: string }) {
+    const season = await this.prisma.seasons.findUnique({
+      where: { id: data.season_id },
+      select: { id: true },
     });
 
-    if (exists) {
-      throw new BadRequestException('Un escenario con el mismo nombre ya existe');
+    if (!season) {
+      throw new BadRequestException('La temporada no existe');
     }
 
-    return this.prisma.venues.create({
-      data,
+    return this.prisma.$transaction(async (tx) => {
+      const existingVenue = await tx.venues.findFirst({
+        where: { name: data.name },
+      });
+
+      if (existingVenue) {
+        await tx.season_venues.upsert({
+          where: {
+            season_id_venue_id: {
+              season_id: data.season_id,
+              venue_id: existingVenue.id,
+            },
+          },
+          update: {},
+          create: {
+            season_id: data.season_id,
+            venue_id: existingVenue.id,
+          },
+        });
+
+        return existingVenue;
+      }
+
+      return tx.venues.create({
+        data: {
+          name: data.name,
+          address: data.address,
+          season_venues: {
+            create: {
+              season_id: data.season_id,
+            },
+          },
+        },
+      });
     });
   }
 

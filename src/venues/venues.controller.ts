@@ -21,6 +21,11 @@ export class VenuesController {
     return this.venuesService.findAll();
   }
 
+  @Get('season/:seasonId')
+  findBySeason(@Param('seasonId') seasonId: string) {
+    return this.venuesService.findBySeason(seasonId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.venuesService.findOne(id);
@@ -32,6 +37,7 @@ export class VenuesController {
   create(
     @Body()
     body: {
+      season_id: string;
       name: string;
       address?: string;
     },

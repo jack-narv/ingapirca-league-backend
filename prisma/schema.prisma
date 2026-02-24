@@ -273,6 +273,7 @@ model seasons {
   player_statistics player_statistics[]
   sanctions         sanctions[]
   season_categories season_categories[]
+  season_venues     season_venues[]
   leagues           leagues             @relation(fields: [league_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_seasons_league")
   referees          referees[]
   standings         standings[]
@@ -375,10 +376,23 @@ model users {
 }
 
 model venues {
-  id      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name    String    @db.VarChar(255)
-  address String?
-  matches matches[]
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name          String          @db.VarChar(255)
+  address       String?
+  matches       matches[]
+  season_venues season_venues[]
+}
+
+model season_venues {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  season_id String   @db.Uuid
+  venue_id  String   @db.Uuid
+  seasons   seasons  @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_season_venues_season")
+  venues    venues   @relation(fields: [venue_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_season_venues_venue")
+
+  @@unique([season_id, venue_id], map: "uq_season_venues_unique")
+  @@index([season_id], map: "idx_season_venues_season")
+  @@index([venue_id], map: "idx_season_venues_venue")
 }
 
 enum award_type {

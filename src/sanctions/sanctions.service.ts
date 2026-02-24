@@ -70,7 +70,7 @@ export class SanctionsService {
         await this.createSuspension({
             ...data,
             reason: 'Roja directa',
-            matches: 3,
+            matches: 2,
         });
     }
 

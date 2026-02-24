@@ -22,6 +22,7 @@ import { SeasonCategoriesModule } from './season-categories/season-categories.mo
 import { StandingsModule } from './standings/standings.module';
 import { RefereeRatingsModule } from './referee_ratings/referee_ratings.module';
 import { MatchRefereeObservationsModule } from './match-referee-observations/match-referee-observations.module';
+import { PlayerStatisticsModule } from './player-statistics/player-statistics.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { MatchRefereeObservationsModule } from './match-referee-observations/mat
     StandingsModule,
     RefereeRatingsModule,
     MatchRefereeObservationsModule,
+    PlayerStatisticsModule,
   ],
   controllers: [HealthController],
   providers: [LiveGateway],
