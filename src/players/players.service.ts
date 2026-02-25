@@ -6,10 +6,20 @@ import { parseDateOnlyUtc } from 'src/date-time.util';
 export class PlayersService {
     constructor(private prisma: PrismaService){}
 
+    private readonly playerPublicSelect = {
+        id: true,
+        first_name: true,
+        last_name: true,
+        date_of_birth: true,
+        nationality: true,
+        photo_url: true,
+    } as const;
+
     //PUBLIC - list all players
     async findAll(){
         return this.prisma.players.findMany({
             orderBy: {last_name: 'asc'},
+            select: this.playerPublicSelect,
         });
     }
 
@@ -17,7 +27,8 @@ export class PlayersService {
     async findOne(playerId:string){
         return this.prisma.players.findUnique({
             where: {id:playerId},
-            include: {
+            select: {
+                ...this.playerPublicSelect,
                 team_player: {
                     where: {left_at: null},
                     include: {teams: true},
@@ -30,10 +41,15 @@ export class PlayersService {
     async createPlayer(data:{
         first_name: string;
         last_name:string;
+        identity_card: string;
         date_of_birth: string;
         nationality: string;
         photo_url?: string;
     }){
+        if(!/^\d{10}$/.test(data.identity_card)){
+            throw new BadRequestException('identity_card must contain exactly 10 digits');
+        }
+
         //Optional: basic duplicate protection
 
         const exists = await this.prisma.players.findFirst({
@@ -55,6 +71,7 @@ export class PlayersService {
                 ...data,
                 date_of_birth: parseDateOnlyUtc(data.date_of_birth),
             },
+            select: this.playerPublicSelect,
         });
     }
 
@@ -66,6 +83,48 @@ export class PlayersService {
         shirt_number: number;
         position: 'GK' | 'DF' | 'MF' | 'FW';
     }){
+        const [player, targetTeam] = await Promise.all([
+            this.prisma.players.findUnique({
+                where: {id: data.player_id},
+                select: {identity_card: true},
+            }),
+            this.prisma.teams.findUnique({
+                where: {id: data.team_id},
+                select: {season_id: true},
+            }),
+        ]);
+
+        if(!player){
+            throw new BadRequestException('Player not found');
+        }
+
+        if(!targetTeam){
+            throw new BadRequestException('Team not found');
+        }
+
+        // In a season, a player (identified by identity_card) can belong to only one team.
+        const seasonAssignment = await this.prisma.team_player.findFirst({
+            where: {
+                team_id: {not: data.team_id},
+                players: {
+                    is: {identity_card: player.identity_card},
+                },
+                teams: {
+                    is: {season_id: targetTeam.season_id},
+                },
+            },
+            select: {
+                id: true,
+                team_id: true,
+            },
+        });
+
+        if(seasonAssignment){
+            throw new BadRequestException(
+                'El jugador ya pertenece a otro equipo en esta temporada.',
+            );
+        }
+
         //Ensure player not already active
         const active = await this.prisma.team_player.findFirst({
             where:{
@@ -122,7 +181,9 @@ export class PlayersService {
             left_at: null,
             },
             include: {
-            players: true,
+            players: {
+                select: this.playerPublicSelect,
+            },
             },
         });
     }

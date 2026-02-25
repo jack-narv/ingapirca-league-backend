@@ -179,6 +179,7 @@ model players {
   id                                                   String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   first_name                                           String                    @db.VarChar(200)
   last_name                                            String                    @db.VarChar(200)
+  identity_card                                        String                    @db.VarChar(10)
   date_of_birth                                        DateTime?                 @db.Date
   nationality                                          String?                   @db.VarChar(100)
   photo_url                                            String?

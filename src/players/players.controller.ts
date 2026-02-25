@@ -29,6 +29,7 @@ export class PlayersController {
         body:{
             first_name: string;
             last_name: string;
+            identity_card: string;
             date_of_birth: string;
             nationality: string;
             photo_url?: string

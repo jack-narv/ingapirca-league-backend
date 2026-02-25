@@ -104,7 +104,7 @@ export class MatchesService {
                 season_id: data.season_id,
                 category_id: effectiveCategoryId,
                 journal: { in: journalValues },
-                status: { not: 'CANCELED' },
+                status: { in: ['SCHEDULED', 'PLAYING', 'PLAYED'] },
                 OR: [
                     {
                         home_team_id: {
