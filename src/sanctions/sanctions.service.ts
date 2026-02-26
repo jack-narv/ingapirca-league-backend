@@ -5,6 +5,322 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class SanctionsService {
     constructor(private prisma: PrismaService){}
 
+    async getCardsSummaryBySeason(
+        seasonId: string,
+        categoryId?: string,
+        teamId?: string,
+    ){
+        const cardEvents = await this.prisma.match_events.findMany({
+            where: {
+                event_type: {
+                    in: ['YELLOW', 'RED_DIRECT'],
+                },
+                ...(teamId ? { team_id: teamId } : {}),
+                matches: {
+                    season_id: seasonId,
+                    ...(categoryId ? { category_id: categoryId } : {}),
+                },
+            },
+            select: {
+                match_id: true,
+                player_id: true,
+                event_type: true,
+                players_match_events_player_idToplayers: {
+                    select: {
+                        first_name: true,
+                        last_name: true,
+                    },
+                },
+            },
+        });
+
+        if(cardEvents.length === 0){
+            return [];
+        }
+
+        const playerIds = Array.from(
+            new Set(
+                cardEvents
+                    .map((e) => e.player_id)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        );
+        const matchIds = Array.from(
+            new Set(
+                cardEvents
+                    .map((e) => e.match_id)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        );
+
+        const [lineups, teamPlayers] = await Promise.all([
+            this.prisma.match_lineup.findMany({
+                where: {
+                    match_id: { in: matchIds },
+                    player_id: { in: playerIds },
+                },
+                select: {
+                    match_id: true,
+                    player_id: true,
+                    shirt_number: true,
+                },
+            }),
+            this.prisma.team_player.findMany({
+                where: {
+                    player_id: { in: playerIds },
+                    teams: {
+                        is: {
+                            season_id: seasonId,
+                        },
+                    },
+                },
+                orderBy: {
+                    joined_at: 'desc',
+                },
+                select: {
+                    player_id: true,
+                    shirt_number: true,
+                },
+            }),
+        ]);
+
+        const lineupShirtByMatchPlayer = new Map<string, number>();
+        for (const item of lineups) {
+            lineupShirtByMatchPlayer.set(
+                `${item.match_id}_${item.player_id}`,
+                item.shirt_number,
+            );
+        }
+
+        const fallbackShirtByPlayer = new Map<string, number>();
+        for (const item of teamPlayers) {
+            if(fallbackShirtByPlayer.has(item.player_id)){
+                continue;
+            }
+            fallbackShirtByPlayer.set(item.player_id, item.shirt_number);
+        }
+
+        const summaryByPlayer = new Map<string, {
+            player_id: string;
+            first_name: string;
+            last_name: string;
+            shirt_number: number | null;
+            yellow_cards: number;
+            red_direct_cards: number;
+        }>();
+
+        for (const event of cardEvents) {
+            const lineupShirt = lineupShirtByMatchPlayer.get(
+                `${event.match_id}_${event.player_id}`,
+            );
+            const fallbackShirt = fallbackShirtByPlayer.get(event.player_id);
+            const existing = summaryByPlayer.get(event.player_id);
+
+            if(existing){
+                if(event.event_type === 'YELLOW'){
+                    existing.yellow_cards += 1;
+                }
+                if(event.event_type === 'RED_DIRECT'){
+                    existing.red_direct_cards += 1;
+                }
+                existing.shirt_number =
+                    existing.shirt_number ??
+                    lineupShirt ??
+                    fallbackShirt ??
+                    null;
+                continue;
+            }
+
+            summaryByPlayer.set(event.player_id, {
+                player_id: event.player_id,
+                first_name:
+                    event.players_match_events_player_idToplayers?.first_name ??
+                    '',
+                last_name:
+                    event.players_match_events_player_idToplayers?.last_name ??
+                    '',
+                shirt_number: lineupShirt ?? fallbackShirt ?? null,
+                yellow_cards: event.event_type === 'YELLOW' ? 1 : 0,
+                red_direct_cards: event.event_type === 'RED_DIRECT' ? 1 : 0,
+            });
+        }
+
+        return Array.from(summaryByPlayer.values()).sort((a, b) => {
+            const totalA = a.yellow_cards + a.red_direct_cards;
+            const totalB = b.yellow_cards + b.red_direct_cards;
+            if(totalB !== totalA){
+                return totalB - totalA;
+            }
+
+            const nameA = `${a.first_name} ${a.last_name}`.trim();
+            const nameB = `${b.first_name} ${b.last_name}`.trim();
+            return nameA.localeCompare(nameB);
+        });
+    }
+
+    async getSuspensionsSummaryBySeason(
+        seasonId: string,
+        categoryId?: string,
+        teamId?: string,
+    ){
+        const sanctions = await this.prisma.sanctions.findMany({
+            where: {
+                season_id: seasonId,
+                type: 'SUSPENSION',
+                player_id: { not: null },
+                ...(teamId ? { team_id: teamId } : {}),
+                ...(categoryId
+                    ? {
+                        matches: {
+                            is: {
+                                category_id: categoryId,
+                            },
+                        },
+                    }
+                    : {}),
+            },
+            select: {
+                player_id: true,
+                team_id: true,
+                match_id: true,
+                matches_affected: true,
+                players: {
+                    select: {
+                        first_name: true,
+                        last_name: true,
+                    },
+                },
+                matches: {
+                    select: {
+                        category_id: true,
+                    },
+                },
+            },
+        });
+
+        if(sanctions.length === 0){
+            return [];
+        }
+
+        const playerIds = Array.from(
+            new Set(
+                sanctions
+                    .map((s) => s.player_id)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        );
+
+        const matchIds = Array.from(
+            new Set(
+                sanctions
+                    .map((s) => s.match_id)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        );
+
+        const [lineups, teamPlayers] = await Promise.all([
+            matchIds.length > 0
+                ? this.prisma.match_lineup.findMany({
+                    where: {
+                        match_id: { in: matchIds },
+                        player_id: { in: playerIds },
+                    },
+                    select: {
+                        match_id: true,
+                        player_id: true,
+                        shirt_number: true,
+                    },
+                })
+                : Promise.resolve([]),
+            this.prisma.team_player.findMany({
+                where: {
+                    player_id: { in: playerIds },
+                    teams: {
+                        is: {
+                            season_id: seasonId,
+                        },
+                    },
+                },
+                orderBy: {
+                    joined_at: 'desc',
+                },
+                select: {
+                    player_id: true,
+                    shirt_number: true,
+                },
+            }),
+        ]);
+
+        const lineupShirtByMatchPlayer = new Map<string, number>();
+        for (const item of lineups) {
+            lineupShirtByMatchPlayer.set(
+                `${item.match_id}_${item.player_id}`,
+                item.shirt_number,
+            );
+        }
+
+        const fallbackShirtByPlayer = new Map<string, number>();
+        for (const item of teamPlayers) {
+            if(fallbackShirtByPlayer.has(item.player_id)){
+                continue;
+            }
+
+            fallbackShirtByPlayer.set(item.player_id, item.shirt_number);
+        }
+
+        const summaryByPlayer = new Map<string, {
+            player_id: string;
+            first_name: string;
+            last_name: string;
+            shirt_number: number | null;
+            total_matches_suspended: number;
+        }>();
+
+        for (const sanction of sanctions) {
+            if(!sanction.player_id){
+                continue;
+            }
+
+            const matchesAffected = sanction.matches_affected ?? 1;
+            const lineupShirt =
+                sanction.match_id
+                    ? lineupShirtByMatchPlayer.get(
+                        `${sanction.match_id}_${sanction.player_id}`,
+                    )
+                    : undefined;
+            const fallbackShirt = fallbackShirtByPlayer.get(sanction.player_id);
+
+            const existing = summaryByPlayer.get(sanction.player_id);
+            if(existing){
+                existing.total_matches_suspended += matchesAffected;
+                existing.shirt_number =
+                    existing.shirt_number ??
+                    lineupShirt ??
+                    fallbackShirt ??
+                    null;
+                continue;
+            }
+
+            summaryByPlayer.set(sanction.player_id, {
+                player_id: sanction.player_id,
+                first_name: sanction.players?.first_name ?? '',
+                last_name: sanction.players?.last_name ?? '',
+                shirt_number: lineupShirt ?? fallbackShirt ?? null,
+                total_matches_suspended: matchesAffected,
+            });
+        }
+
+        return Array.from(summaryByPlayer.values()).sort((a, b) => {
+            if (b.total_matches_suspended !== a.total_matches_suspended) {
+                return b.total_matches_suspended - a.total_matches_suspended;
+            }
+
+            const nameA = `${a.first_name} ${a.last_name}`.trim();
+            const nameB = `${b.first_name} ${b.last_name}`.trim();
+            return nameA.localeCompare(nameB);
+        });
+    }
+
     async getSuspendedPlayersForMatch(matchId: string, teamId: string){
         const match = await this.prisma.matches.findUnique({
             where: { id: matchId },
