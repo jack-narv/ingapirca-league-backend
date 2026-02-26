@@ -9,6 +9,12 @@ export class HealthController {
 
     }
 
+    @Get('public')
+    async publicHealth() {
+        await this.prisma.$queryRaw`SELECT 1`;
+        return { status: 'ok' };
+    }
+
     @UseGuards(JwtAuthGuard)
     @Get()
     async health(@CurrentUser() user: any){
