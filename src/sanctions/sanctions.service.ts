@@ -184,6 +184,7 @@ export class SanctionsService {
                 team_id: true,
                 match_id: true,
                 matches_affected: true,
+                start_date: true,
                 players: {
                     select: {
                         first_name: true,
@@ -193,6 +194,7 @@ export class SanctionsService {
                 matches: {
                     select: {
                         category_id: true,
+                        match_date: true,
                     },
                 },
             },
@@ -218,7 +220,7 @@ export class SanctionsService {
             ),
         );
 
-        const [lineups, teamPlayers] = await Promise.all([
+        const [lineups, teamPlayers, playedMatches] = await Promise.all([
             matchIds.length > 0
                 ? this.prisma.match_lineup.findMany({
                     where: {
@@ -249,6 +251,17 @@ export class SanctionsService {
                     shirt_number: true,
                 },
             }),
+            this.prisma.matches.findMany({
+                where: {
+                    season_id: seasonId,
+                    status: 'PLAYED',
+                },
+                select: {
+                    match_date: true,
+                    home_team_id: true,
+                    away_team_id: true,
+                },
+            }),
         ]);
 
         const lineupShirtByMatchPlayer = new Map<string, number>();
@@ -273,7 +286,7 @@ export class SanctionsService {
             first_name: string;
             last_name: string;
             shirt_number: number | null;
-            total_matches_suspended: number;
+            pending_matches_suspended: number;
         }>();
 
         for (const sanction of sanctions) {
@@ -282,6 +295,26 @@ export class SanctionsService {
             }
 
             const matchesAffected = sanction.matches_affected ?? 1;
+            const referenceDate =
+                sanction.matches?.match_date ??
+                sanction.start_date ??
+                new Date(0);
+            const sanctionTeamId = sanction.team_id;
+            const servedMatches = sanctionTeamId
+                ? playedMatches.filter(
+                    (match) =>
+                        match.match_date > referenceDate &&
+                        (
+                            match.home_team_id === sanctionTeamId ||
+                            match.away_team_id === sanctionTeamId
+                        ),
+                  ).length
+                : 0;
+            const pendingMatches = matchesAffected - servedMatches;
+            if(pendingMatches <= 0){
+                continue;
+            }
+
             const lineupShirt =
                 sanction.match_id
                     ? lineupShirtByMatchPlayer.get(
@@ -292,7 +325,7 @@ export class SanctionsService {
 
             const existing = summaryByPlayer.get(sanction.player_id);
             if(existing){
-                existing.total_matches_suspended += matchesAffected;
+                existing.pending_matches_suspended += pendingMatches;
                 existing.shirt_number =
                     existing.shirt_number ??
                     lineupShirt ??
@@ -306,13 +339,13 @@ export class SanctionsService {
                 first_name: sanction.players?.first_name ?? '',
                 last_name: sanction.players?.last_name ?? '',
                 shirt_number: lineupShirt ?? fallbackShirt ?? null,
-                total_matches_suspended: matchesAffected,
+                pending_matches_suspended: pendingMatches,
             });
         }
 
         return Array.from(summaryByPlayer.values()).sort((a, b) => {
-            if (b.total_matches_suspended !== a.total_matches_suspended) {
-                return b.total_matches_suspended - a.total_matches_suspended;
+            if (b.pending_matches_suspended !== a.pending_matches_suspended) {
+                return b.pending_matches_suspended - a.pending_matches_suspended;
             }
 
             const nameA = `${a.first_name} ${a.last_name}`.trim();
