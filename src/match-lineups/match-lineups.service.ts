@@ -1,9 +1,13 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SanctionsService } from 'src/sanctions/sanctions.service';
 
 @Injectable()
 export class MatchLineupsService {
-    constructor(private prisma: PrismaService){}
+    constructor(
+        private prisma: PrismaService,
+        private sanctionsService: SanctionsService,
+    ){}
 
     async getLineup(matchId:string, teamId:string){
         return this.prisma.match_lineup.findMany({
@@ -61,22 +65,35 @@ export class MatchLineupsService {
 
         if(startingCount > 11){
             throw new BadRequestException(
-                'Un máximo de 11 jugadores están permitidos.'
+                'Un maximo de 11 jugadores estan permitidos.',
             );
         }
 
-        // CHECK SUSPENSIONS
-        for (const player of data.players) {
-            const suspended = await this.isPlayerSuspended(
-            player.player_id,
-            data.match_id,
+        const suspendedPlayers =
+            await this.sanctionsService.getSuspendedPlayersForMatch(
+                data.match_id,
+                data.team_id,
             );
 
-            if (suspended) {
-            throw new BadRequestException(
-                `El jugador ${player.player_id} está suspendido y no puede ser alineado.`,
-                );
+        const suspendedPlayerIds = new Set(
+            suspendedPlayers.map((player) => player.player_id),
+        );
+
+        for (const player of data.players) {
+            if (!suspendedPlayerIds.has(player.player_id)) {
+                continue;
             }
+
+            const suspendedPlayer = suspendedPlayers.find(
+                (item) => item.player_id === player.player_id,
+            );
+            const fullName = suspendedPlayer
+                ? `${suspendedPlayer.first_name} ${suspendedPlayer.last_name}`
+                : player.player_id;
+
+            throw new BadRequestException(
+                `El jugador ${fullName} esta suspendido y no puede ser alineado.`,
+            );
         }
 
         // Remove previous lineup (re-submit allowed before start)
@@ -101,42 +118,5 @@ export class MatchLineupsService {
         return this.prisma.match_lineup.createMany({
             data:records,
         });
-    }
-
-    private async isPlayerSuspended(
-        playerId: string,
-        matchId: string,
-    ): Promise<boolean>{
-        const match = await this.prisma.matches.findUnique({
-            where:{ id:matchId},
-            select: { season_id: true, match_date: true},
-        });
-
-        if(!match) return false;
-
-        const suspension = await this.prisma.sanctions.findFirst({
-            where: {
-                player_id: playerId,
-                season_id: match.season_id,
-                type: 'SUSPENSION',
-            },
-            orderBy: {start_date: 'desc'},
-        });
-
-        if(!suspension) return false;
-
-        //Count matches already served
-        const playedMatchesAfterSuspension = 
-            await this.prisma.matches.count({
-                where: {
-                    season_id: match.season_id,
-                    status: 'PLAYED',
-                    match_date: {
-                        gt: suspension.start_date!,
-                    },
-                },
-            });
-
-        return playedMatchesAfterSuspension < suspension.matches_affected!;
     }
 }
