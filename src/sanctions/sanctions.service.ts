@@ -492,27 +492,6 @@ export class SanctionsService {
 
     //YELLOW CARD LOGIC
     private async handleYellow(data:any){
-        //Count yellows in this match
-        const yellowsInMatch = await this.prisma.match_events.count({
-            where: {
-                match_id: data.match_id,
-                player_id: data.player_id,
-                event_type: 'YELLOW',
-            },
-        });
-
-        //Two yellows = red
-        if(yellowsInMatch === 2){
-            await this.createSuspension({
-                ...data,
-                reason: 'Dos amarillas en el mismo partido',
-                matches: 1,
-            });
-
-            return;
-        }
-
-
         //Count yellows in a season
         const yellowsInSeason = await this.prisma.match_events.count({
             where: {
@@ -539,7 +518,7 @@ export class SanctionsService {
         await this.createSuspension({
             ...data,
             reason: 'Roja directa',
-            matches: 2,
+            matches: 1,
         });
     }
 
