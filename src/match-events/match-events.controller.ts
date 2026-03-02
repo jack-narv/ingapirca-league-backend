@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { MatchEventsService } from './match-events.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles/roles.guard';
@@ -37,5 +37,12 @@ export class MatchEventsController {
         },
     ){
         return this.service.createEvent(body);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Delete(':id')
+    delete(@Param('id') id: string){
+        return this.service.deleteEvent(id);
     }
 }
