@@ -35,7 +35,7 @@ export class MatchObservationsController {
 
     // ADMIN - Add team observation from player input
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN')
+    @Roles('ADMIN', 'VOCAL')
     @Post()
     create(
         @CurrentUser() user: any,

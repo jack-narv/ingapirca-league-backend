@@ -49,7 +49,7 @@ export class MatchesController {
 
     //ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
     @Patch(':id/start')
     startMatch(@Param('id') id: string) {
         return this.matchesService.startMatch(id);
@@ -58,7 +58,7 @@ export class MatchesController {
 
     //ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
     @Patch(':id/finish')
     finishMatch(
         @Param('id') id:string,
@@ -84,7 +84,7 @@ export class MatchesController {
 
     //ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
     @Patch(':id/cancel')
     cancelMatch(
         @Param('id') id: string,

@@ -20,7 +20,7 @@ export class MatchLineupsController {
 
     //Submit lineup
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'LEAGUE_ADMIN', 'TEAM_MANAGER')
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'TEAM_MANAGER', 'VOCAL')
     @Post()
     submitLineup(
         @CurrentUser() user:any,

@@ -35,7 +35,7 @@ export class SanctionsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'LEAGUE_ADMIN', 'TEAM_MANAGER')
+  @Roles('ADMIN', 'LEAGUE_ADMIN', 'TEAM_MANAGER', 'VOCAL')
   @Get('suspended-players/:matchId/team/:teamId')
   getSuspendedPlayers(
     @Param('matchId') matchId: string,

@@ -16,7 +16,7 @@ export class MatchEventsController {
 
     //Add event ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
     @Post()
     create(
         @Body()

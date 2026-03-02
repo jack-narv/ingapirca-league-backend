@@ -32,7 +32,7 @@ export class MatchRefereeObservationsController {
     }
 
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
     @Post()
     create(
         @Body()

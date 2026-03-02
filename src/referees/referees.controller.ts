@@ -7,11 +7,11 @@ import { AssignRefereeDto } from './dto/assign-referee.dto';
 import { CreateRefereeDto } from './dto/create-referee.dto';
 
 @Controller('referees')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN','LEAGUE_ADMIN')
 export class RefereesController {
     constructor(private service: RefereesService){}
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN','LEAGUE_ADMIN')
     @Post()
     create(@Body() body: CreateRefereeDto){
         return this.service.create(body);
@@ -22,26 +22,36 @@ export class RefereesController {
         return this.service.findAllBySeason(seasonId);
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN','LEAGUE_ADMIN')
     @Patch(':id/deactivate')
     deactivate(@Param('id') id:string){
         return this.service.deactivate(id);
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN','LEAGUE_ADMIN')
     @Post('assign')
     assign(@Body() body: AssignRefereeDto){
         return this.service.assignToMatch(body);
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN','LEAGUE_ADMIN')
     @Post('match-referees')
     assignMatchReferee(@Body() body: AssignRefereeDto){
         return this.service.assignToMatch(body);
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN','LEAGUE_ADMIN')
     @Post('match-referees/assign')
     assignMatchRefereeLegacy(@Body() body: AssignRefereeDto){
         return this.service.assignToMatch(body);
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN','LEAGUE_ADMIN', 'VOCAL')
     @Patch('match-referees/:id/observation')
     submitObservation(
     @Param('id') id: string,
