@@ -13,6 +13,52 @@ export class AuthService {
 
     }
 
+    private getAccessSecret() {
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            throw new Error('JWT_SECRET no esta definida');
+        }
+        return secret;
+    }
+
+    private getRefreshSecret() {
+        return process.env.JWT_REFRESH_SECRET || this.getAccessSecret();
+    }
+
+    private getAccessExpiresIn() {
+        return process.env.JWT_ACCESS_EXPIRES_IN || '1d';
+    }
+
+    private getRefreshExpiresIn() {
+        return process.env.JWT_REFRESH_EXPIRES_IN || '3650d';
+    }
+
+    private async issueTokens(userId: string, email: string, roles: string[]) {
+        const basePayload = {
+            sub: userId,
+            email,
+            roles,
+        };
+
+        const accessToken = await this.jwtService.signAsync(
+            { ...basePayload, token_type: 'access' },
+            {
+                secret: this.getAccessSecret(),
+                expiresIn: this.getAccessExpiresIn() as any,
+            },
+        );
+
+        const refreshToken = await this.jwtService.signAsync(
+            { ...basePayload, token_type: 'refresh' },
+            {
+                secret: this.getRefreshSecret(),
+                expiresIn: this.getRefreshExpiresIn() as any,
+            },
+        );
+
+        return { accessToken, refreshToken };
+    }
+
     async register(email: string, password:string, fullName?:string){
         const existing = await this.prisma.users.findUnique({
             where: {email},
@@ -78,16 +124,74 @@ export class AuthService {
             (ur) => ur.roles.name
         );
 
-        const payload = {
-            sub: user.id,
-            email: user.email,
-            roles: roleNames,
-        };
-
-        const accessToken = this.jwtService.sign(payload);
+        const tokens = await this.issueTokens(
+            user.id,
+            user.email,
+            roleNames,
+        );
 
         return {
-            accessToken,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            user: {
+                id: user.id,
+                email: user.email,
+                roles: roleNames,
+            },
+        };
+    }
+
+    async refresh(refreshToken: string){
+        if(!refreshToken || refreshToken.trim().length === 0){
+            throw new UnauthorizedException('Refresh token requerido');
+        }
+
+        let payload: any;
+        try{
+            payload = await this.jwtService.verifyAsync(
+                refreshToken,
+                { secret: this.getRefreshSecret() },
+            );
+        } catch (_) {
+            throw new UnauthorizedException(
+                'Refresh token invalido o expirado',
+            );
+        }
+
+        if(payload?.token_type !== 'refresh'){
+            throw new UnauthorizedException(
+                'Refresh token invalido',
+            );
+        }
+
+        const user = await this.prisma.users.findUnique({
+            where: { id: payload.sub },
+            include: {
+                user_roles: {
+                    include: {
+                        roles: true,
+                    },
+                },
+            },
+        });
+
+        if (!user || !user.is_active){
+            throw new UnauthorizedException('Usuario inactivo');
+        }
+
+        const roleNames = user.user_roles.map(
+            (ur) => ur.roles.name,
+        );
+
+        const tokens = await this.issueTokens(
+            user.id,
+            user.email,
+            roleNames,
+        );
+
+        return {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
             user: {
                 id: user.id,
                 email: user.email,
