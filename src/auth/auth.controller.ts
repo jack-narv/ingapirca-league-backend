@@ -1,5 +1,7 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Delete } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth/jwt-auth.guard';
+import { CurrentUser } from './current-user/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -25,5 +27,11 @@ export class AuthController {
     @Post('refresh')
     async refresh(@Body() body:{refreshToken: string}){
         return this.authService.refresh(body.refreshToken);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('account')
+    async deleteAccount(@CurrentUser() user: { userId: string }) {
+        return this.authService.deactivateAccount(user.userId);
     }
 }

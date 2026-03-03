@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UnauthorizedException } from '@nestjs/common';
@@ -197,6 +197,39 @@ export class AuthService {
                 email: user.email,
                 roles: roleNames,
             },
+        };
+    }
+
+    async deactivateAccount(userId: string) {
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true, is_active: true },
+        });
+
+        if (!user) {
+            throw new NotFoundException('Usuario no encontrado');
+        }
+
+        if (!user.is_active) {
+            return {
+                message: 'La cuenta ya estaba desactivada',
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    is_active: user.is_active,
+                },
+            };
+        }
+
+        const updatedUser = await this.prisma.users.update({
+            where: { id: userId },
+            data: { is_active: false },
+            select: { id: true, email: true, is_active: true },
+        });
+
+        return {
+            message: 'Cuenta desactivada correctamente',
+            user: updatedUser,
         };
     }
 }
