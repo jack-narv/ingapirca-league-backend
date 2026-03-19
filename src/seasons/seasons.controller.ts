@@ -20,6 +20,12 @@ export class SeasonsController {
         return this.seasonService.findCategoriesBySeason(seasonId);
     }
 
+    //PUBLIC
+    @Get(':seasonId')
+    getById(@Param('seasonId') seasonId: string){
+        return this.seasonService.findById(seasonId);
+    }
+
     // ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('ADMIN', 'LEAGUE_ADMIN')
@@ -31,6 +37,9 @@ export class SeasonsController {
             name: string;
             start_date: string;
             end_date: string;
+            two_yellows_matches_affected?: number;
+            direct_red_matches_affected?: number;
+            game_number_players?: number;
         },
     ) {
         return this.seasonService.create(body);

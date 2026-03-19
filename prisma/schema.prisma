@@ -269,6 +269,9 @@ model seasons {
   start_date        DateTime            @db.Date
   end_date          DateTime            @db.Date
   status            season_status       @default(PLANNED)
+  two_yellows_matches_affected Int      @default(1)
+  direct_red_matches_affected  Int      @default(1)
+  game_number_players          Int      @default(11)
   awards            awards[]
   matches           matches[]
   player_statistics player_statistics[]

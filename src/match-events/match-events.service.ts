@@ -172,7 +172,10 @@ export class MatchEventsService {
                 });
             }
 
-            if(event.event_type === 'YELLOW'){
+            if(
+                event.event_type === 'YELLOW' ||
+                event.event_type === 'DOBLE_YELLOW_RED'
+            ){
                 await tx.sanctions.deleteMany({
                     where: {
                         season_id: event.matches.season_id,
@@ -180,7 +183,7 @@ export class MatchEventsService {
                         player_id: event.player_id,
                         type: 'SUSPENSION',
                         reason: {
-                            contains: 'tarjetas amarillas',
+                            contains: 'amarilla',
                         },
                     },
                 });

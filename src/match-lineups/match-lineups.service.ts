@@ -59,13 +59,26 @@ export class MatchLineupsService {
             );
         }
 
+        const season = await this.prisma.seasons.findUnique({
+            where: {
+                id: match.season_id,
+            },
+            select: {
+                game_number_players: true,
+            },
+        });
+
+        if(!season){
+            throw new BadRequestException('Temporada no encontrada.');
+        }
+
         const startingCount = data.players.filter(
             (p) => p.is_starting,
         ).length;
 
-        if(startingCount > 11){
+        if(startingCount > season.game_number_players){
             throw new BadRequestException(
-                'Un maximo de 11 jugadores estan permitidos.',
+                `La alineacion titular no puede tener mas de ${season.game_number_players} jugadores.`,
             );
         }
 

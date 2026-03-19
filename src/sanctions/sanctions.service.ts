@@ -481,17 +481,27 @@ export class SanctionsService {
         season_id: string;
         event_type: 'YELLOW' | 'DOBLE_YELLOW_RED' | 'RED_DIRECT';
     }){
+        const seasonRules = await this.getSeasonCardRules(data.season_id);
+
         if(data.event_type === 'YELLOW'){
-            await this.handleYellow(data);
+            await this.handleYellow(data, seasonRules.two_yellows_matches_affected);
+        }
+
+        if(data.event_type === 'DOBLE_YELLOW_RED'){
+            await this.handleDoubleYellow(data, seasonRules.two_yellows_matches_affected);
         }
 
         if(data.event_type === 'RED_DIRECT'){
-            await this.handleRedDirect(data);
+            await this.handleRedDirect(data, seasonRules.direct_red_matches_affected);
         }
     }
 
     //YELLOW CARD LOGIC
-    private async handleYellow(data:any){
+    private async handleYellow(data: any, matchesAffected: number){
+        if(matchesAffected <= 0){
+            return;
+        }
+
         //Count yellows in a season
         const yellowsInSeason = await this.prisma.match_events.count({
             where: {
@@ -507,19 +517,64 @@ export class SanctionsService {
             await this.createSuspension({
                 ...data,
                 reason: 'Acumulación de tarjetas amarillas',
-                matches: 1,
+                matches: matchesAffected,
             });
         }
     }
 
 
+    //DOUBLE YELLOW LOGIC
+    private async handleDoubleYellow(data: any, matchesAffected: number){
+        if(matchesAffected <= 0){
+            return;
+        }
+
+        await this.createSuspension({
+            ...data,
+            reason: 'Doble amarilla',
+            matches: matchesAffected,
+        });
+    }
+
+
     //DIRECT RED LOGIC
-    private async handleRedDirect(data: any){
+    private async handleRedDirect(data: any, matchesAffected: number){
+        if(matchesAffected <= 0){
+            return;
+        }
+
         await this.createSuspension({
             ...data,
             reason: 'Roja directa',
-            matches: 1,
+            matches: matchesAffected,
         });
+    }
+
+    private async getSeasonCardRules(seasonId: string){
+        const season = await this.prisma.seasons.findUnique({
+            where: {
+                id: seasonId,
+            },
+            select: {
+                two_yellows_matches_affected: true,
+                direct_red_matches_affected: true,
+            },
+        });
+
+        if(!season){
+            throw new BadRequestException('Temporada no encontrada.');
+        }
+
+        return {
+            two_yellows_matches_affected: Math.max(
+                0,
+                season.two_yellows_matches_affected ?? 0,
+            ),
+            direct_red_matches_affected: Math.max(
+                0,
+                season.direct_red_matches_affected ?? 0,
+            ),
+        };
     }
 
     //CREATE SANCTION
