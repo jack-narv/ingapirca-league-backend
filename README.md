@@ -31,6 +31,20 @@
 $ npm install
 ```
 
+## Forced app update configuration
+
+The endpoint `GET /health/public` now returns an `app_update` object used by mobile clients to enforce minimum app versions.
+
+Configure these Railway environment variables:
+
+- `FORCE_UPDATE=true` to enable strict blocking.
+- `MIN_ANDROID_VERSION=1.0.8` minimum allowed Android version (`pubspec.yaml` style).
+- `MIN_IOS_VERSION=1.0.8` minimum allowed iOS version.
+- `ANDROID_STORE_URL=https://play.google.com/store/apps/details?id=<your.package>`
+- `IOS_STORE_URL=https://apps.apple.com/app/id<your_app_id>`
+
+If `FORCE_UPDATE=false`, clients will not block by version.
+
 ## Compile and run the project
 
 ```bash
