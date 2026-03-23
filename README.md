@@ -70,6 +70,16 @@ $ mau deploy
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
+## Railway / Web CORS
+
+When frontend is deployed as web (for iOS browser users), set:
+
+```bash
+CORS_ORIGINS=https://YOUR-FRONTEND.up.railway.app,https://YOUR-CUSTOM-DOMAIN.com
+```
+
+This value is used by both HTTP CORS and Socket.IO gateway CORS.
+
 ## Resources
 
 Check out a few resources that may come in handy when working with NestJS:
