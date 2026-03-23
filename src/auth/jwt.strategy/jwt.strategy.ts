@@ -29,11 +29,17 @@ export class JwtStrategy  extends PassportStrategy(Strategy){
             },
         });
 
-        const roles = userRoles.map((ur) => ur.roles.name)
+        const roleAssignments = userRoles.map((ur) => ({
+            role: ur.roles.name.trim().toUpperCase(),
+            season_id: ur.season_id,
+        }));
+        const roles = Array.from(new Set(roleAssignments.map((assignment) => assignment.role)));
+
         return {
             userId: payload.sub,
             email: payload.email,
-            roles
+            roles,
+            roleAssignments,
         }
     }   
 

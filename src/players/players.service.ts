@@ -41,11 +41,17 @@ export class PlayersService {
     async createPlayer(data:{
         first_name: string;
         last_name:string;
+        season_id?: string;
         identity_card: string;
         date_of_birth: string;
         nationality: string;
         photo_url?: string;
     }){
+        const {
+            season_id: _seasonIdForScopeOnly,
+            ...playerData
+        } = data;
+
         if(!/^\d{10}$/.test(data.identity_card)){
             throw new BadRequestException('identity_card must contain exactly 10 digits');
         }
@@ -68,7 +74,7 @@ export class PlayersService {
 
         return this.prisma.players.create({
             data:{
-                ...data,
+                ...playerData,
                 date_of_birth: parseDateOnlyUtc(data.date_of_birth),
             },
             select: this.playerPublicSelect,

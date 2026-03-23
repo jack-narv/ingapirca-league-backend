@@ -282,6 +282,7 @@ model seasons {
   referees          referees[]
   standings         standings[]
   teams             teams[]
+  user_roles        user_roles[]
 }
 
 model season_categories {
@@ -362,10 +363,13 @@ model teams {
 model user_roles {
   user_id String @db.Uuid
   role_id Int    @db.SmallInt
+  season_id String? @db.Uuid
   roles   roles  @relation(fields: [role_id], references: [id], onUpdate: NoAction, map: "fk_user_roles_role")
   users   users  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_roles_user")
+  seasons seasons? @relation(fields: [season_id], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_user_roles_season")
 
   @@id([user_id, role_id])
+  @@index([season_id], map: "idx_user_roles_season")
 }
 
 model users {

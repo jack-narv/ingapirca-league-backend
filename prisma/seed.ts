@@ -12,6 +12,7 @@ async function main(){
         {id: 2, name: 'LEAGUE_ADMIN'},
         {id: 3, name: 'TEAM_MANAGER'},
         {id: 4, name: 'USER'},
+        {id: 5, name: 'VOCAL'},
     ];
 
     for(const role of roles){

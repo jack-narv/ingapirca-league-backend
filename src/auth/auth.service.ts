@@ -121,7 +121,7 @@ export class AuthService {
 
         // Extract role names
         const roleNames = user.user_roles.map(
-            (ur) => ur.roles.name
+            (ur) => ur.roles.name.trim().toUpperCase(),
         );
 
         const tokens = await this.issueTokens(
@@ -180,7 +180,7 @@ export class AuthService {
         }
 
         const roleNames = user.user_roles.map(
-            (ur) => ur.roles.name,
+            (ur) => ur.roles.name.trim().toUpperCase(),
         );
 
         const tokens = await this.issueTokens(

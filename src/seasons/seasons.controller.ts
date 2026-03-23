@@ -26,9 +26,9 @@ export class SeasonsController {
         return this.seasonService.findById(seasonId);
     }
 
-    // ADMIN / LEAGUE_ADMIN
+    // ADMIN ONLY
     @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('ADMIN', 'LEAGUE_ADMIN')
+    @Roles('ADMIN')
     @Post()
     createSeason(
         @Body()
