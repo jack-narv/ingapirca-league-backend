@@ -1,5 +1,4 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LiveGateway } from 'src/live/live.gateway';
 
@@ -233,10 +232,6 @@ export class MatchesService {
                     },
                 });
 
-                if (!this.isKnockoutJournal(updateMatch.journal)) {
-                    await this.updateStandings(tx, updateMatch);
-                }
-
                 return updateMatch;
         }); 
 
@@ -277,88 +272,6 @@ export class MatchesService {
         });
     }
 
-    private async updateStandings(
-        tx: Prisma.TransactionClient,
-        match: any,
-    ){
-        const homeGoals = match.home_score;
-        const awayGoals = match.away_score;
-
-        let home = {win: 0, draw: 0, loss: 0, points: 0};
-        let away = {win: 0, draw: 0, loss: 0, points: 0};
-
-        if(homeGoals > awayGoals){
-            home = {win: 1, draw: 0, loss: 0, points: 3};
-            away = {win: 0, draw: 0, loss: 1, points: 0};
-        }else if(homeGoals < awayGoals){
-            home = {win: 0, draw: 0, loss: 1, points: 0};
-            away = {win: 1, draw: 0, loss: 0, points: 3};
-        }else{
-            home = {win: 0, draw: 1, loss: 0, points: 1};
-            away = {win: 0, draw: 1, loss: 0, points: 1};
-        }
-
-        await Promise.all([
-            tx.standings.upsert({
-                where: {
-                    season_id_team_id: {
-                        season_id: match.season_id,
-                        team_id: match.home_team_id,
-                    },
-                },
-                update: {
-                    played: { increment: 1},
-                    wins: { increment: home.win},
-                    draws: { increment: home.draw},
-                    losses: { increment: home.loss},
-                    goals_for: { increment: homeGoals},
-                    goals_against: { increment: awayGoals},
-                    points: { increment: home.points},
-                },
-                create: {
-                    season_id: match.season_id,
-                    team_id: match.home_team_id,
-                    played: 1,
-                    wins:home.win,
-                    draws: home.draw,
-                    losses: home.loss,
-                    goals_for: homeGoals,
-                    goals_against: awayGoals,
-                    points: home.points,
-                },
-            }),
-
-            tx.standings.upsert({
-                where: {
-                    season_id_team_id: {
-                        season_id: match.season_id,
-                        team_id: match.away_team_id
-                    },
-                },
-                update:{
-                    played: { increment: 1},
-                    wins: {increment: away.win},
-                    draws: {increment:away.draw},
-                    losses: { increment: away.loss},
-                    goals_for: { increment: awayGoals},
-                    goals_against: { increment:homeGoals},
-                    points: { increment: away.points},
-                },
-                create: {
-                    season_id: match.season_id,
-                    team_id: match.away_team_id,
-                    played: 1,
-                    wins: away.win,
-                    draws: away.draw,
-                    losses: away.loss,
-                    goals_for: awayGoals,
-                    goals_against: homeGoals,
-                    points: away.points,
-                },
-            }),
-        ]);
-    }
-
     private normalizeJournal(journal: string) {
         const value = journal?.trim();
 
@@ -376,22 +289,6 @@ export class MatchesService {
         }
 
         return value.toUpperCase();
-    }
-
-    private isKnockoutJournal(journal?: string | null) {
-        if (!journal) {
-            return false;
-        }
-
-        if (/^\d+$/.test(journal)) {
-            return false;
-        }
-
-        if (/^JOURNAL\s+\d+$/i.test(journal.trim())) {
-            return false;
-        }
-
-        return true;
     }
 
     private getEquivalentJournalValues(journal: string) {
