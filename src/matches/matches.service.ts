@@ -222,6 +222,35 @@ export class MatchesService {
         return matchUpdate;
     }
 
+    async updateObservationDuringMatch(
+        matchId: string,
+        observations?: string,
+    ){
+        const match = await this.prisma.matches.findUnique({
+            where: { id: matchId },
+        });
+
+        if (!match) {
+            throw new NotFoundException('Partido no encontrado');
+        }
+
+        if (
+            match.status !== 'PLAYING_FIRST_HALF' &&
+            match.status !== 'PLAYING_SECOND_HALF'
+        ) {
+            throw new BadRequestException(
+                'Solo se puede editar la observacion durante el partido',
+            );
+        }
+
+        return this.prisma.matches.update({
+            where: { id: matchId },
+            data: {
+                observations: observations?.trim() || null,
+            },
+        });
+    }
+
     async finishMatch(
         matchId: string,
         homeScore: number,
