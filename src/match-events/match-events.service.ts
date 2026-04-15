@@ -14,7 +14,7 @@ export class MatchEventsService {
     //PUBLIC -Get match timeline
 
     async getByMatch(matchId:string){
-        return this.prisma.match_events.findMany({
+        const events = await this.prisma.match_events.findMany({
             where: { match_id: matchId},
             include: {
                 players_match_events_player_idToplayers: {
@@ -24,7 +24,12 @@ export class MatchEventsService {
                     },
                 },
             },
-            orderBy: { minute: 'asc' },
+        });
+
+        return events.sort((a, b) => {
+            const aSort = this.getMinuteSortValue(a.minute);
+            const bSort = this.getMinuteSortValue(b.minute);
+            return aSort - bSort;
         });
     }
 
@@ -33,7 +38,7 @@ export class MatchEventsService {
         match_id: string;
         team_id:string;
         player_id: string;
-        minute: number;
+        minute: string;
         event_type:
             | 'GOAL'
             | 'YELLOW'
@@ -51,15 +56,18 @@ export class MatchEventsService {
                 where: { id: data.match_id},
             });
 
-            if(!match || match.status !== 'PLAYING'){
+            if(
+                !match ||
+                (match.status !== 'PLAYING_FIRST_HALF' &&
+                    match.status !== 'PLAYING_SECOND_HALF')
+            ){
                 throw new BadRequestException(
                     'Los eventos solo se pueden añadir durante los partidos',
                 );
             }
 
-            if(data.minute < 0 || data.minute > 130){
-                throw new BadRequestException('Invalid minute');
-            }
+            this.validateMinuteByMatchStatus(match.status, data.minute);
+            const normalizedMinute = this.normalizeMinuteValue(data.minute);
 
             //Validate lineup participation
             const lineupPlayer = await tx.match_lineup.findFirst({
@@ -89,7 +97,10 @@ export class MatchEventsService {
 
             //Create event
             const event = await tx.match_events.create({
-                data,
+                data: {
+                    ...data,
+                    minute: normalizedMinute,
+                },
             });
 
             //Update match score
@@ -151,7 +162,11 @@ export class MatchEventsService {
                 throw new BadRequestException('Evento no encontrado');
             }
 
-            if(!event.matches || event.matches.status !== 'PLAYING'){
+            if(
+                !event.matches ||
+                (event.matches.status !== 'PLAYING_FIRST_HALF' &&
+                    event.matches.status !== 'PLAYING_SECOND_HALF')
+            ){
                 throw new BadRequestException(
                     'Los eventos solo se pueden eliminar durante los partidos',
                 );
@@ -370,6 +385,65 @@ export class MatchEventsService {
                 red_cards: { decrement: stats.red_cards },
             },
         });
+    }
+
+    private validateMinuteByMatchStatus(
+        status: 'PLAYING_FIRST_HALF' | 'PLAYING_SECOND_HALF',
+        minuteValue: string,
+    ){
+        const parsed = this.parseMinuteValue(minuteValue);
+
+        if(
+            status === 'PLAYING_FIRST_HALF' &&
+            parsed.half !== 1
+        ){
+            throw new BadRequestException(
+                'En primer tiempo usa formato "X 1t"',
+            );
+        }
+
+        if(
+            status === 'PLAYING_SECOND_HALF' &&
+            parsed.half !== 2
+        ){
+            throw new BadRequestException(
+                'En segundo tiempo usa formato "X 2t"',
+            );
+        }
+    }
+
+    private parseMinuteValue(value: string){
+        const minuteText = value?.trim();
+        const match = minuteText?.match(/^(\d+)\s*([12])t$/i);
+
+        if(!match){
+            throw new BadRequestException(
+                'Formato de minuto inválido. Usa por ejemplo "10 1t" o "20 2t".',
+            );
+        }
+
+        const minute = parseInt(match[1], 10);
+        const half = parseInt(match[2], 10) as 1 | 2;
+
+        if(Number.isNaN(minute)){
+            throw new BadRequestException('Invalid minute');
+        }
+
+        return { minute, half };
+    }
+
+    private normalizeMinuteValue(value: string){
+        const parsed = this.parseMinuteValue(value);
+        return `${parsed.minute} ${parsed.half}t`;
+    }
+
+    private getMinuteSortValue(value: string){
+        try {
+            const parsed = this.parseMinuteValue(value);
+            return parsed.half === 1 ? parsed.minute : 100 + parsed.minute;
+        } catch {
+            return Number.MAX_SAFE_INTEGER;
+        }
     }
 }
 

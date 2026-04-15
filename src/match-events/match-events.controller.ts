@@ -24,7 +24,7 @@ export class MatchEventsController {
             match_id: string;
             team_id: string;
             player_id: string;
-            minute: number;
+            minute: string;
             event_type:
                 | 'GOAL'
                 | 'YELLOW'

@@ -36,7 +36,7 @@ export class LiveGateway {
       .to(`match:${matchId}`)
       .emit('match_started', {
         matchId,
-        status: 'PLAYING',
+        status: 'PLAYING_FIRST_HALF',
         startedAt: new Date(),
       });
   }
@@ -45,6 +45,26 @@ export class LiveGateway {
     this.server
       .to(`match:${matchId}`)
       .emit('match_event', event);
+  }
+
+  broadcastHalfTime(matchId: string){
+    this.server
+      .to(`match:${matchId}`)
+      .emit('match_half_time', {
+        matchId,
+        status: 'HALF_TIME',
+        halfTimeAt: new Date(),
+      });
+  }
+
+  broadcastSecondHalfStart(matchId: string){
+    this.server
+      .to(`match:${matchId}`)
+      .emit('match_second_half_started', {
+        matchId,
+        status: 'PLAYING_SECOND_HALF',
+        startedAt: new Date(),
+      });
   }
 
   broadcastScoreUpdate(matchId: string, score: any){
