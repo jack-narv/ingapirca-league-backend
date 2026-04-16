@@ -55,6 +55,33 @@ export class MatchesController {
         return this.matchesService.startMatch(id);
     }
 
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Patch(':id/half-time')
+    endFirstHalf(@Param('id') id: string) {
+        return this.matchesService.endFirstHalf(id);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Patch(':id/second-half')
+    startSecondHalf(@Param('id') id: string) {
+        return this.matchesService.startSecondHalf(id);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Patch(':id/observation')
+    updateObservation(
+        @Param('id') id: string,
+        @Body() body: { observations?: string },
+    ) {
+        return this.matchesService.updateObservationDuringMatch(
+            id,
+            body.observations,
+        );
+    }
+
 
     //ADMIN / LEAGUE_ADMIN
     @UseGuards(JwtAuthGuard, RolesGuard)

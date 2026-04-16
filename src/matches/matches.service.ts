@@ -103,7 +103,15 @@ export class MatchesService {
                 season_id: data.season_id,
                 category_id: effectiveCategoryId,
                 journal: { in: journalValues },
-                status: { in: ['SCHEDULED', 'PLAYING', 'PLAYED'] },
+                status: {
+                    in: [
+                        'SCHEDULED',
+                        'PLAYING_FIRST_HALF',
+                        'HALF_TIME',
+                        'PLAYING_SECOND_HALF',
+                        'PLAYED',
+                    ],
+                },
                 OR: [
                     {
                         home_team_id: {
@@ -156,12 +164,91 @@ export class MatchesService {
 
         const matchUpdate = await this.prisma.matches.update({
             where: {id:matchId},
-            data: {status: 'PLAYING'},
+            data: {status: 'PLAYING_FIRST_HALF'},
         });
 
         this.live.broadcastMatchStart(matchId);
 
         return matchUpdate;
+    }
+
+    async endFirstHalf(matchId: string){
+        const match = await this.prisma.matches.findUnique({
+            where: {id: matchId},
+        });
+
+        if(!match){
+            throw new NotFoundException('Partido no encontrado');
+        }
+
+        if(match.status !== 'PLAYING_FIRST_HALF'){
+            throw new BadRequestException(
+                'Solo los partidos en primer tiempo pueden ir a descanso',
+            );
+        }
+
+        const matchUpdate = await this.prisma.matches.update({
+            where: {id: matchId},
+            data: {status: 'HALF_TIME'},
+        });
+
+        this.live.broadcastHalfTime(matchId);
+
+        return matchUpdate;
+    }
+
+    async startSecondHalf(matchId: string){
+        const match = await this.prisma.matches.findUnique({
+            where: {id: matchId},
+        });
+
+        if(!match){
+            throw new NotFoundException('Partido no encontrado');
+        }
+
+        if(match.status !== 'HALF_TIME'){
+            throw new BadRequestException(
+                'Solo los partidos en descanso pueden iniciar el segundo tiempo',
+            );
+        }
+
+        const matchUpdate = await this.prisma.matches.update({
+            where: {id: matchId},
+            data: {status: 'PLAYING_SECOND_HALF'},
+        });
+
+        this.live.broadcastSecondHalfStart(matchId);
+
+        return matchUpdate;
+    }
+
+    async updateObservationDuringMatch(
+        matchId: string,
+        observations?: string,
+    ){
+        const match = await this.prisma.matches.findUnique({
+            where: { id: matchId },
+        });
+
+        if (!match) {
+            throw new NotFoundException('Partido no encontrado');
+        }
+
+        if (
+            match.status !== 'PLAYING_FIRST_HALF' &&
+            match.status !== 'PLAYING_SECOND_HALF'
+        ) {
+            throw new BadRequestException(
+                'Solo se puede editar la observacion durante el partido',
+            );
+        }
+
+        return this.prisma.matches.update({
+            where: { id: matchId },
+            data: {
+                observations: observations?.trim() || null,
+            },
+        });
     }
 
     async finishMatch(
@@ -182,9 +269,9 @@ export class MatchesService {
                     throw new NotFoundException('Partido no encontrado');
                 }
 
-                if(match.status !== 'PLAYING'){
+                if(match.status !== 'PLAYING_SECOND_HALF'){
                     throw new BadRequestException(
-                        'Solo los partidos en juego pueden terminar'
+                        'Solo los partidos en segundo tiempo pueden terminar'
                     );
                 }
 
