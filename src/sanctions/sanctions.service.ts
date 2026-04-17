@@ -24,11 +24,17 @@ export class SanctionsService {
             select: {
                 match_id: true,
                 player_id: true,
+                team_id: true,
                 event_type: true,
                 players_match_events_player_idToplayers: {
                     select: {
                         first_name: true,
                         last_name: true,
+                    },
+                },
+                teams: {
+                    select: {
+                        name: true,
                     },
                 },
             },
@@ -62,6 +68,7 @@ export class SanctionsService {
                 select: {
                     match_id: true,
                     player_id: true,
+                    team_id: true,
                     shirt_number: true,
                 },
             }),
@@ -79,7 +86,13 @@ export class SanctionsService {
                 },
                 select: {
                     player_id: true,
+                    team_id: true,
                     shirt_number: true,
+                    teams: {
+                        select: {
+                            name: true,
+                        },
+                    },
                 },
             }),
         ]);
@@ -87,21 +100,29 @@ export class SanctionsService {
         const lineupShirtByMatchPlayer = new Map<string, number>();
         for (const item of lineups) {
             lineupShirtByMatchPlayer.set(
-                `${item.match_id}_${item.player_id}`,
+                `${item.match_id}_${item.player_id}_${item.team_id}`,
                 item.shirt_number,
             );
         }
 
-        const fallbackShirtByPlayer = new Map<string, number>();
+        const fallbackShirtByPlayerTeam = new Map<string, number>();
+        const fallbackTeamNameByPlayerTeam = new Map<string, string>();
         for (const item of teamPlayers) {
-            if(fallbackShirtByPlayer.has(item.player_id)){
+            const key = `${item.player_id}_${item.team_id}`;
+            if(fallbackShirtByPlayerTeam.has(key)){
                 continue;
             }
-            fallbackShirtByPlayer.set(item.player_id, item.shirt_number);
+            fallbackShirtByPlayerTeam.set(key, item.shirt_number);
+            fallbackTeamNameByPlayerTeam.set(
+                key,
+                item.teams?.name ?? '',
+            );
         }
 
-        const summaryByPlayer = new Map<string, {
+        const summaryByPlayerTeam = new Map<string, {
             player_id: string;
+            team_id: string;
+            team_name: string;
             first_name: string;
             last_name: string;
             shirt_number: number | null;
@@ -110,11 +131,16 @@ export class SanctionsService {
         }>();
 
         for (const event of cardEvents) {
+            const key = `${event.player_id}_${event.team_id}`;
             const lineupShirt = lineupShirtByMatchPlayer.get(
-                `${event.match_id}_${event.player_id}`,
+                `${event.match_id}_${event.player_id}_${event.team_id}`,
             );
-            const fallbackShirt = fallbackShirtByPlayer.get(event.player_id);
-            const existing = summaryByPlayer.get(event.player_id);
+            const fallbackShirt = fallbackShirtByPlayerTeam.get(key);
+            const existing = summaryByPlayerTeam.get(key);
+            const teamName =
+                event.teams?.name ??
+                fallbackTeamNameByPlayerTeam.get(key) ??
+                '';
 
             if(existing){
                 if(event.event_type === 'YELLOW'){
@@ -128,11 +154,16 @@ export class SanctionsService {
                     lineupShirt ??
                     fallbackShirt ??
                     null;
+                if(!existing.team_name && teamName){
+                    existing.team_name = teamName;
+                }
                 continue;
             }
 
-            summaryByPlayer.set(event.player_id, {
+            summaryByPlayerTeam.set(key, {
                 player_id: event.player_id,
+                team_id: event.team_id,
+                team_name: teamName,
                 first_name:
                     event.players_match_events_player_idToplayers?.first_name ??
                     '',
@@ -145,7 +176,7 @@ export class SanctionsService {
             });
         }
 
-        return Array.from(summaryByPlayer.values()).sort((a, b) => {
+        return Array.from(summaryByPlayerTeam.values()).sort((a, b) => {
             const totalA = a.yellow_cards + a.red_direct_cards;
             const totalB = b.yellow_cards + b.red_direct_cards;
             if(totalB !== totalA){
@@ -191,6 +222,11 @@ export class SanctionsService {
                         last_name: true,
                     },
                 },
+                teams: {
+                    select: {
+                        name: true,
+                    },
+                },
                 matches: {
                     select: {
                         category_id: true,
@@ -230,6 +266,7 @@ export class SanctionsService {
                     select: {
                         match_id: true,
                         player_id: true,
+                        team_id: true,
                         shirt_number: true,
                     },
                 })
@@ -248,7 +285,13 @@ export class SanctionsService {
                 },
                 select: {
                     player_id: true,
+                    team_id: true,
                     shirt_number: true,
+                    teams: {
+                        select: {
+                            name: true,
+                        },
+                    },
                 },
             }),
             this.prisma.matches.findMany({
@@ -267,22 +310,30 @@ export class SanctionsService {
         const lineupShirtByMatchPlayer = new Map<string, number>();
         for (const item of lineups) {
             lineupShirtByMatchPlayer.set(
-                `${item.match_id}_${item.player_id}`,
+                `${item.match_id}_${item.player_id}_${item.team_id}`,
                 item.shirt_number,
             );
         }
 
-        const fallbackShirtByPlayer = new Map<string, number>();
+        const fallbackShirtByPlayerTeam = new Map<string, number>();
+        const fallbackTeamNameByPlayerTeam = new Map<string, string>();
         for (const item of teamPlayers) {
-            if(fallbackShirtByPlayer.has(item.player_id)){
+            const key = `${item.player_id}_${item.team_id}`;
+            if(fallbackShirtByPlayerTeam.has(key)){
                 continue;
             }
 
-            fallbackShirtByPlayer.set(item.player_id, item.shirt_number);
+            fallbackShirtByPlayerTeam.set(key, item.shirt_number);
+            fallbackTeamNameByPlayerTeam.set(
+                key,
+                item.teams?.name ?? '',
+            );
         }
 
-        const summaryByPlayer = new Map<string, {
+        const summaryByPlayerTeam = new Map<string, {
             player_id: string;
+            team_id: string;
+            team_name: string;
             first_name: string;
             last_name: string;
             shirt_number: number | null;
@@ -315,15 +366,21 @@ export class SanctionsService {
                 continue;
             }
 
+            const summaryTeamId = sanction.team_id ?? 'unknown';
+            const summaryKey = `${sanction.player_id}_${summaryTeamId}`;
             const lineupShirt =
                 sanction.match_id
                     ? lineupShirtByMatchPlayer.get(
-                        `${sanction.match_id}_${sanction.player_id}`,
+                        `${sanction.match_id}_${sanction.player_id}_${summaryTeamId}`,
                     )
                     : undefined;
-            const fallbackShirt = fallbackShirtByPlayer.get(sanction.player_id);
+            const fallbackShirt = fallbackShirtByPlayerTeam.get(summaryKey);
+            const teamName =
+                sanction.teams?.name ??
+                fallbackTeamNameByPlayerTeam.get(summaryKey) ??
+                '';
 
-            const existing = summaryByPlayer.get(sanction.player_id);
+            const existing = summaryByPlayerTeam.get(summaryKey);
             if(existing){
                 existing.pending_matches_suspended += pendingMatches;
                 existing.shirt_number =
@@ -331,11 +388,16 @@ export class SanctionsService {
                     lineupShirt ??
                     fallbackShirt ??
                     null;
+                if(!existing.team_name && teamName){
+                    existing.team_name = teamName;
+                }
                 continue;
             }
 
-            summaryByPlayer.set(sanction.player_id, {
+            summaryByPlayerTeam.set(summaryKey, {
                 player_id: sanction.player_id,
+                team_id: summaryTeamId,
+                team_name: teamName,
                 first_name: sanction.players?.first_name ?? '',
                 last_name: sanction.players?.last_name ?? '',
                 shirt_number: lineupShirt ?? fallbackShirt ?? null,
@@ -343,7 +405,7 @@ export class SanctionsService {
             });
         }
 
-        return Array.from(summaryByPlayer.values()).sort((a, b) => {
+        return Array.from(summaryByPlayerTeam.values()).sort((a, b) => {
             if (b.pending_matches_suspended !== a.pending_matches_suspended) {
                 return b.pending_matches_suspended - a.pending_matches_suspended;
             }

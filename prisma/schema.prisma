@@ -147,6 +147,7 @@ model matches {
   sanctions                         sanctions[]
   matchTeamObservations             match_team_observations[]
   matchRefereeObservations          match_referee_observations[]
+  vocalia                           vocalia[]
 
   @@index([match_date], map: "idx_matches_date")
   @@index([season_id], map: "idx_matches_season")
@@ -356,8 +357,32 @@ model teams {
   team_player                         team_player[]
   seasons                             seasons                   @relation(fields: [season_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_teams_season")
   matchTeamObservations               match_team_observations[]
+  vocalia                             vocalia[]
 
   @@index([category_id], map: "idx_teams_category")
+}
+
+model vocalia {
+  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  match_id       String          @db.Uuid
+  team_id        String          @db.Uuid
+  matches        matches         @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_vocalia_match")
+  teams          teams           @relation(fields: [team_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_vocalia_team")
+  vocalia_values vocalia_values[]
+
+  @@unique([match_id, team_id], map: "uq_vocalia_match_team")
+  @@index([match_id], map: "idx_vocalia_match")
+  @@index([team_id], map: "idx_vocalia_team")
+}
+
+model vocalia_values {
+  id         String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  vocalia_id String          @db.Uuid
+  concept    String          @db.VarChar(255)
+  amount     Decimal         @db.Decimal(10, 2)
+  vocalia    vocalia         @relation(fields: [vocalia_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_vocalia_values_vocalia")
+
+  @@index([vocalia_id], map: "idx_vocalia_values_vocalia")
 }
 
 model user_roles {
