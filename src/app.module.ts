@@ -23,6 +23,7 @@ import { StandingsModule } from './standings/standings.module';
 import { RefereeRatingsModule } from './referee_ratings/referee_ratings.module';
 import { MatchRefereeObservationsModule } from './match-referee-observations/match-referee-observations.module';
 import { PlayerStatisticsModule } from './player-statistics/player-statistics.module';
+import { VocaliaModule } from './vocalia/vocalia.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { PlayerStatisticsModule } from './player-statistics/player-statistics.mo
     RefereeRatingsModule,
     MatchRefereeObservationsModule,
     PlayerStatisticsModule,
+    VocaliaModule,
   ],
   controllers: [HealthController],
   providers: [LiveGateway],
