@@ -29,9 +29,27 @@ export class AuthController {
         return this.authService.refresh(body.refreshToken);
     }
 
+    @Post('password-hash')
+    async hashPassword(@Body() body: { password: string }) {
+        return this.authService.hashPassword(body.password);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Delete('account')
     async deleteAccount(@CurrentUser() user: { userId: string }) {
         return this.authService.deactivateAccount(user.userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('reset-password')
+    async resetPassword(
+        @CurrentUser() user: { userId: string },
+        @Body() body: { currentPassword: string; newPassword: string },
+    ) {
+        return this.authService.resetPassword(
+            user.userId,
+            body.currentPassword,
+            body.newPassword,
+        );
     }
 }

@@ -232,6 +232,91 @@ export class AuthService {
             user: updatedUser,
         };
     }
+
+    async resetPassword(
+        userId: string,
+        currentPassword: string,
+        newPassword: string,
+    ) {
+        if (!currentPassword || !newPassword) {
+            throw new BadRequestException(
+                'Contraseñas requeridas',
+            );
+        }
+
+        if (newPassword.length < 8) {
+            throw new BadRequestException(
+                'La nueva contraseña debe tener al menos 8 caracteres',
+            );
+        }
+
+        const user = await this.prisma.users.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                is_active: true,
+                password_hash: true,
+            },
+        });
+
+        if (!user) {
+            throw new NotFoundException('Usuario no encontrado');
+        }
+
+        if (!user.is_active) {
+            throw new UnauthorizedException('Usuario inactivo');
+        }
+
+        const currentPasswordValid = await bcrypt.compare(
+            currentPassword,
+            user.password_hash,
+        );
+
+        if (!currentPasswordValid) {
+            throw new UnauthorizedException('Contraseña actual inválida');
+        }
+
+        const isSamePassword = await bcrypt.compare(
+            newPassword,
+            user.password_hash,
+        );
+
+        if (isSamePassword) {
+            throw new BadRequestException(
+                'La nueva contraseña debe ser diferente a la actual',
+            );
+        }
+
+        const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+        await this.prisma.users.update({
+            where: { id: user.id },
+            data: { password_hash: newPasswordHash },
+        });
+
+        return {
+            message: 'Contraseña actualizada correctamente',
+        };
+    }
+
+    async hashPassword(password: string) {
+        if (!password || password.trim().length === 0) {
+            throw new BadRequestException('Contraseña requerida');
+        }
+
+        if (password.length < 8) {
+            throw new BadRequestException(
+                'La contraseña debe tener al menos 8 caracteres',
+            );
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        return {
+            passwordHash,
+        };
+    }
 }
 
 
