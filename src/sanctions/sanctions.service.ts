@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -542,30 +543,48 @@ export class SanctionsService {
         team_id: string;
         season_id: string;
         event_type: 'YELLOW' | 'DOBLE_YELLOW_RED' | 'RED_DIRECT';
-    }){
-        const seasonRules = await this.getSeasonCardRules(data.season_id);
+    }, tx?: Prisma.TransactionClient){
+        const seasonRules = await this.getSeasonCardRules(data.season_id, tx);
 
         if(data.event_type === 'YELLOW'){
-            await this.handleYellow(data, seasonRules.two_yellows_matches_affected);
+            await this.handleYellow(
+                data,
+                seasonRules.two_yellows_matches_affected,
+                tx,
+            );
         }
 
         if(data.event_type === 'DOBLE_YELLOW_RED'){
-            await this.handleDoubleYellow(data, seasonRules.two_yellows_matches_affected);
+            await this.handleDoubleYellow(
+                data,
+                seasonRules.two_yellows_matches_affected,
+                tx,
+            );
         }
 
         if(data.event_type === 'RED_DIRECT'){
-            await this.handleRedDirect(data, seasonRules.direct_red_matches_affected);
+            await this.handleRedDirect(
+                data,
+                seasonRules.direct_red_matches_affected,
+                tx,
+            );
         }
     }
 
     //YELLOW CARD LOGIC
-    private async handleYellow(data: any, matchesAffected: number){
+    private async handleYellow(
+        data: any,
+        matchesAffected: number,
+        tx?: Prisma.TransactionClient,
+    ){
         if(matchesAffected <= 0){
             return;
         }
 
+        const prisma = tx ?? this.prisma;
+
         //Count yellows in a season
-        const yellowsInSeason = await this.prisma.match_events.count({
+        const yellowsInSeason = await prisma.match_events.count({
             where: {
                 player_id: data.player_id,
                 event_type: 'YELLOW',
@@ -586,7 +605,11 @@ export class SanctionsService {
 
 
     //DOUBLE YELLOW LOGIC
-    private async handleDoubleYellow(data: any, matchesAffected: number){
+    private async handleDoubleYellow(
+        data: any,
+        matchesAffected: number,
+        tx?: Prisma.TransactionClient,
+    ){
         if(matchesAffected <= 0){
             return;
         }
@@ -595,12 +618,16 @@ export class SanctionsService {
             ...data,
             reason: 'Doble amarilla',
             matches: matchesAffected,
-        });
+        }, tx);
     }
 
 
     //DIRECT RED LOGIC
-    private async handleRedDirect(data: any, matchesAffected: number){
+    private async handleRedDirect(
+        data: any,
+        matchesAffected: number,
+        tx?: Prisma.TransactionClient,
+    ){
         if(matchesAffected <= 0){
             return;
         }
@@ -609,11 +636,15 @@ export class SanctionsService {
             ...data,
             reason: 'Roja directa',
             matches: matchesAffected,
-        });
+        }, tx);
     }
 
-    private async getSeasonCardRules(seasonId: string){
-        const season = await this.prisma.seasons.findUnique({
+    private async getSeasonCardRules(
+        seasonId: string,
+        tx?: Prisma.TransactionClient,
+    ){
+        const prisma = tx ?? this.prisma;
+        const season = await prisma.seasons.findUnique({
             where: {
                 id: seasonId,
             },
@@ -647,9 +678,10 @@ export class SanctionsService {
         match_id: string;
         reason:string;
         matches: number;
-    }){
+    }, tx?: Prisma.TransactionClient){
+        const prisma = tx ?? this.prisma;
         //Prevent duplicates
-        const exists = await this.prisma.sanctions.findFirst({
+        const exists = await prisma.sanctions.findFirst({
             where: {
                 player_id: data.player_id,
                 match_id: data.match_id,
@@ -665,7 +697,7 @@ export class SanctionsService {
             const currentMatches = exists.matches_affected ?? 0;
 
             if(data.matches > currentMatches){
-                await this.prisma.sanctions.update({
+                await prisma.sanctions.update({
                     where: { id: exists.id },
                     data: {
                         reason: data.reason,
@@ -677,7 +709,7 @@ export class SanctionsService {
             return;
         }
 
-        await this.prisma.sanctions.create({
+        await prisma.sanctions.create({
             data: {
                 season_id: data.season_id,
                 team_id: data.team_id,
