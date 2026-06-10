@@ -109,18 +109,18 @@ export class MatchEventsService {
             //Update player statistics
             await this.updatePlayerStats(tx, match.season_id, data);
 
+            if(this.isCardEvent(data.event_type)){
+                await this.sanctions.handleCardEvent({
+                    match_id: data.match_id,
+                    player_id: data.player_id,
+                    team_id: data.team_id,
+                    season_id: match.season_id,
+                    event_type: data.event_type,
+                }, tx);
+            }
+
             return {event, match, updateMatch};
         });
-
-        if(this.isCardEvent(data.event_type)){
-            await this.sanctions.handleCardEvent({
-                match_id: data.match_id,
-                player_id: data.player_id,
-                team_id: data.team_id,
-                season_id: result.match.season_id,
-                event_type: data.event_type,
-            })
-        }
 
         this.live.broadcastMatchEvent(
                 data.match_id,
