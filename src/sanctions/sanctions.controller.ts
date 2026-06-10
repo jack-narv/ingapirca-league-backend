@@ -8,6 +8,19 @@ import { SanctionsService } from './sanctions.service';
 export class SanctionsController {
   constructor(private readonly sanctionsService: SanctionsService) {}
 
+  @Get('overview/season/:seasonId')
+  getSeasonOverview(
+    @Param('seasonId') seasonId: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('teamId') teamId?: string,
+  ) {
+    return this.sanctionsService.getSeasonOverview(
+      seasonId,
+      categoryId,
+      teamId,
+    );
+  }
+
   @Get('suspensions-summary/season/:seasonId')
   getSuspensionsSummary(
     @Param('seasonId') seasonId: string,

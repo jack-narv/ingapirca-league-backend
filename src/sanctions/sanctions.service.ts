@@ -417,6 +417,55 @@ export class SanctionsService {
         });
     }
 
+    async getSeasonOverview(
+        seasonId: string,
+        categoryId?: string,
+        teamId?: string,
+    ){
+        const [categories, teams, cardsSummary, suspensionsSummary] = await Promise.all([
+            this.prisma.season_categories.findMany({
+                where: {
+                    season_id: seasonId,
+                    is_active: true,
+                },
+                select: {
+                    id: true,
+                    season_id: true,
+                    name: true,
+                    sort_order: true,
+                    is_active: true,
+                },
+                orderBy: [
+                    { sort_order: 'asc' },
+                    { name: 'asc' },
+                ],
+            }),
+            this.prisma.teams.findMany({
+                where: {
+                    season_id: seasonId,
+                },
+                select: {
+                    id: true,
+                    category_id: true,
+                    name: true,
+                    founded_year: true,
+                    logo_url: true,
+                },
+                orderBy: {
+                    name: 'asc',
+                },
+            }),
+            this.getCardsSummaryBySeason(seasonId, categoryId, teamId),
+            this.getSuspensionsSummaryBySeason(seasonId, categoryId, teamId),
+        ]);
+
+        return {
+            categories,
+            teams,
+            cards_summary: cardsSummary,
+            suspensions_summary: suspensionsSummary,
+        };
+    }
     async getSuspendedPlayersForMatch(matchId: string, teamId: string){
         const match = await this.prisma.matches.findUnique({
             where: { id: matchId },
@@ -723,3 +772,4 @@ export class SanctionsService {
         });
     }
 }
+
