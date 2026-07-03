@@ -12,7 +12,6 @@ import { MatchesModule } from './matches/matches.module';
 import { MatchLineupsModule } from './match-lineups/match-lineups.module';
 import { PlayersModule } from './players/players.module';
 import { MatchEventsModule } from './match-events/match-events.module';
-import { LiveGateway } from './live/live.gateway';
 import { LiveModule } from './live/live.module';
 import { SanctionsModule } from './sanctions/sanctions.module';
 import { RefereesModule } from './referees/referees.module';
@@ -52,7 +51,6 @@ import { VocaliaModule } from './vocalia/vocalia.module';
     VocaliaModule,
   ],
   controllers: [HealthController],
-  providers: [LiveGateway],
 })
 export class AppModule {}
   

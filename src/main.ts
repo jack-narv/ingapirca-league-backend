@@ -16,7 +16,7 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization, x-season-id',
   });
-
+  app.enableShutdownHooks();
   app.use(morgan('dev'));
   await app.listen(process.env.PORT ?? 3000);
 }

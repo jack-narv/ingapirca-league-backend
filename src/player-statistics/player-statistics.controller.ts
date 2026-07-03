@@ -34,6 +34,17 @@ export class PlayerStatisticsController {
         );
     }
 
+    @Get('season/:seasonId/scorers-summary')
+    getScorersSummary(
+        @Param('seasonId') seasonId: string,
+        @Query('categoryId') categoryId?: string,
+    ) {
+        return this.playerStatisticsService.scorersSummary(
+            seasonId,
+            categoryId,
+        );
+    }
+
     @Get('season/:seasonId/top-cards')
     getTopCards(
         @Param('seasonId') seasonId: string,

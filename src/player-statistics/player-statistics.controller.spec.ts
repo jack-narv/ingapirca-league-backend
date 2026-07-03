@@ -4,14 +4,21 @@ import { PlayerStatisticsService } from './player-statistics.service';
 
 describe('PlayerStatisticsController', () => {
   let controller: PlayerStatisticsController;
+  let service: {
+    scorersSummary: jest.Mock;
+  };
 
   beforeEach(async () => {
+    service = {
+      scorersSummary: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PlayerStatisticsController],
       providers: [
         {
           provide: PlayerStatisticsService,
-          useValue: {},
+          useValue: service,
         },
       ],
     }).compile();
@@ -21,5 +28,13 @@ describe('PlayerStatisticsController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('delegates scorer summary requests to the service', async () => {
+    service.scorersSummary.mockResolvedValue([]);
+
+    await controller.getScorersSummary('season-1', 'cat-1');
+
+    expect(service.scorersSummary).toHaveBeenCalledWith('season-1', 'cat-1');
   });
 });
