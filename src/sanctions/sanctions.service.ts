@@ -643,7 +643,7 @@ export class SanctionsService {
             },
         });
 
-        if(yellowsInSeason % 5 === 0){
+        if(yellowsInSeason % 4 === 0){
             await this.createSuspension({
                 ...data,
                 reason: 'Acumulación de tarjetas amarillas',
