@@ -24,7 +24,7 @@ export class MatchEventsController {
             match_id: string;
             team_id: string;
             player_id: string;
-            minute: string;
+            minute?: string | null;
             event_type:
                 | 'GOAL'
                 | 'YELLOW'
@@ -32,7 +32,9 @@ export class MatchEventsController {
                 | 'RED_DIRECT'
                 | 'SUB_IN'
                 | 'SUB_OUT'
-                | 'OWN_GOAL'
+                | 'PENALTY_CONVERTED'
+                | 'PENALTY_MISSED'
+                | 'OWN_GOAL';
             related_player_id?: string;
         },
     ){

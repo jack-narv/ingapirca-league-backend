@@ -71,6 +71,34 @@ export class MatchesController {
 
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Patch(':id/first-extra-half')
+    startFirstExtraHalf(@Param('id') id: string) {
+        return this.matchesService.startFirstExtraHalf(id);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Patch(':id/extra-half-time')
+    endFirstExtraHalf(@Param('id') id: string) {
+        return this.matchesService.endFirstExtraHalf(id);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Patch(':id/second-extra-half')
+    startSecondExtraHalf(@Param('id') id: string) {
+        return this.matchesService.startSecondExtraHalf(id);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
+    @Patch(':id/penalties')
+    startPenalties(@Param('id') id: string) {
+        return this.matchesService.startPenalties(id);
+    }
+
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN', 'LEAGUE_ADMIN', 'VOCAL')
     @Patch(':id/observation')
     updateObservation(
         @Param('id') id: string,

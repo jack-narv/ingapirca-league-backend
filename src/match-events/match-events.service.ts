@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { EXTRA_STATUSES, PLAYING_STATUSES, isKnockoutJournal } from '../matches/match-period.util';
 import { Prisma } from '@prisma/client';
 import { LiveGateway } from 'src/live/live.gateway';
 import { SanctionsService } from 'src/sanctions/sanctions.service';
@@ -38,7 +39,7 @@ export class MatchEventsService {
         match_id: string;
         team_id:string;
         player_id: string;
-        minute: string;
+        minute?: string | null;
         event_type:
             | 'GOAL'
             | 'YELLOW'
@@ -46,6 +47,8 @@ export class MatchEventsService {
             | 'RED_DIRECT'
             | 'SUB_IN'
             | 'SUB_OUT'
+            | 'PENALTY_CONVERTED'
+            | 'PENALTY_MISSED'
             | 'OWN_GOAL';
         related_player_id?: string;
     }){
@@ -58,16 +61,30 @@ export class MatchEventsService {
 
             if(
                 !match ||
-                (match.status !== 'PLAYING_FIRST_HALF' &&
-                    match.status !== 'PLAYING_SECOND_HALF')
+                !PLAYING_STATUSES.includes(match.status)
             ){
                 throw new BadRequestException(
                     'Los eventos solo se pueden añadir durante los partidos',
                 );
             }
 
-            this.validateMinuteByMatchStatus(match.status, data.minute);
-            const normalizedMinute = this.normalizeMinuteValue(data.minute);
+            if (EXTRA_STATUSES.includes(match.status) && !isKnockoutJournal(match.journal)) {
+                throw new BadRequestException('La prorroga y los penales requieren eliminacion directa');
+            }
+            const isPenalty = ['PENALTY_CONVERTED', 'PENALTY_MISSED'].includes(data.event_type);
+            let normalizedMinute: string | null;
+            if (isPenalty) {
+                if (match.status !== 'PENALTIES' || data.minute != null) {
+                    throw new BadRequestException('Los penales solo se registran en PENALTIES y sin minuto');
+                }
+                normalizedMinute = null;
+            } else {
+                if (match.status === 'PENALTIES') {
+                    throw new BadRequestException('En PENALTIES solo se registran penales convertidos o fallados');
+                }
+                this.validateMinuteByMatchStatus(match.status, data.minute);
+                normalizedMinute = this.normalizeMinuteValue(data.minute);
+            }
 
             //Validate lineup participation
             const lineupPlayer = await tx.match_lineup.findFirst({
@@ -164,8 +181,7 @@ export class MatchEventsService {
 
             if(
                 !event.matches ||
-                (event.matches.status !== 'PLAYING_FIRST_HALF' &&
-                    event.matches.status !== 'PLAYING_SECOND_HALF')
+                !PLAYING_STATUSES.includes(event.matches.status)
             ){
                 throw new BadRequestException(
                     'Los eventos solo se pueden eliminar durante los partidos',
@@ -387,63 +403,44 @@ export class MatchEventsService {
         });
     }
 
-    private validateMinuteByMatchStatus(
-        status: 'PLAYING_FIRST_HALF' | 'PLAYING_SECOND_HALF',
-        minuteValue: string,
-    ){
+    private validateMinuteByMatchStatus(status: string, minuteValue?: string | null) {
         const parsed = this.parseMinuteValue(minuteValue);
-
-        if(
-            status === 'PLAYING_FIRST_HALF' &&
-            parsed.half !== 1
-        ){
-            throw new BadRequestException(
-                'En primer tiempo usa formato "X 1t"',
-            );
-        }
-
-        if(
-            status === 'PLAYING_SECOND_HALF' &&
-            parsed.half !== 2
-        ){
-            throw new BadRequestException(
-                'En segundo tiempo usa formato "X 2t"',
-            );
+        const periods: Record<string, string> = {
+            PLAYING_FIRST_HALF: '1t',
+            PLAYING_SECOND_HALF: '2t',
+            PLAYING_FIRST_EXTRA_HALF: '1te',
+            PLAYING_SECOND_EXTRA_HALF: '2te',
+        };
+        if (parsed.period !== periods[status]) {
+            throw new BadRequestException('Para este tiempo usa formato "X ' + periods[status] + '"');
         }
     }
 
-    private parseMinuteValue(value: string){
-        const minuteText = value?.trim();
-        const match = minuteText?.match(/^(\d+)\s*([12])t$/i);
-
-        if(!match){
-            throw new BadRequestException(
-                'Formato de minuto inválido. Usa por ejemplo "10 1t" o "20 2t".',
-            );
+    private parseMinuteValue(value?: string | null) {
+        const match = typeof value === 'string' ? value.trim().match(/^(\d+)\s*([12]te?)$/i) : null;
+        if (!match) {
+            throw new BadRequestException('Minuto obligatorio: usa "10 1t", "20 2t", "5 1te" o "10 2te"');
         }
-
-        const minute = parseInt(match[1], 10);
-        const half = parseInt(match[2], 10) as 1 | 2;
-
-        if(Number.isNaN(minute)){
-            throw new BadRequestException('Invalid minute');
+        const minute = Number(match[1]);
+        const period = match[2].toLowerCase();
+        if (!Number.isSafeInteger(minute) || (minute + ' ' + period).length > 12) {
+            throw new BadRequestException('Minuto invalido');
         }
-
-        return { minute, half };
+        return { minute, period };
     }
 
-    private normalizeMinuteValue(value: string){
+    private normalizeMinuteValue(value?: string | null) {
         const parsed = this.parseMinuteValue(value);
-        return `${parsed.minute} ${parsed.half}t`;
+        return parsed.minute + ' ' + parsed.period;
     }
 
-    private getMinuteSortValue(value: string){
+    private getMinuteSortValue(value: string | null) {
         try {
             const parsed = this.parseMinuteValue(value);
-            return parsed.half === 1 ? parsed.minute : 100 + parsed.minute;
+            const periodIndex = ['1t', '2t', '1te', '2te'].indexOf(parsed.period);
+            return periodIndex * 1_000_000_000 + parsed.minute;
         } catch {
             return Number.MAX_SAFE_INTEGER;
         }
     }
 }
-

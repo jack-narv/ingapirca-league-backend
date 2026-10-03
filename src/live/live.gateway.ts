@@ -67,6 +67,14 @@ export class LiveGateway {
       });
   }
 
+  broadcastMatchPeriodStart(matchId: string, status: string) {
+    this.server.to(`match:${matchId}`).emit('match_period_started', {
+      matchId,
+      status,
+      startedAt: new Date(),
+    });
+  }
+
   broadcastScoreUpdate(matchId: string, score: any){
     this.server
       .to(`match:${matchId}`)
