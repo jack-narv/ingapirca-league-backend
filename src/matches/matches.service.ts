@@ -1,3 +1,5 @@
+import { match_status } from '@prisma/client';
+import { PLAYING_STATUSES, isKnockoutJournal } from './match-period.util';
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { LiveGateway } from 'src/live/live.gateway';
@@ -9,25 +11,28 @@ export class MatchesService {
     ){}
 
     async findBySeason(seasonId: string, categoryId?: string){
-        return this.prisma.matches.findMany({
+        const matches = await this.prisma.matches.findMany({
             where: {
                 season_id: seasonId,
                 ...(categoryId ? { category_id: categoryId } : {}),
             },
+            include: this.penaltyEventsInclude,
             orderBy: {match_date: 'asc'},
         });
+        return matches.map(match => this.withPenaltyScores(match));
     }
 
     async findById(matchId: string){
         const match = await this.prisma.matches.findUnique({
             where: {id: matchId},
+            include: this.penaltyEventsInclude,
         });
 
         if(!match){
             throw new NotFoundException('Partido no encontrado');
         }
 
-        return match;
+        return this.withPenaltyScores(match);
     }
 
     async createMatch(data:{
@@ -109,6 +114,10 @@ export class MatchesService {
                         'PLAYING_FIRST_HALF',
                         'HALF_TIME',
                         'PLAYING_SECOND_HALF',
+                        'PLAYING_FIRST_EXTRA_HALF',
+                        'PLAYING_SECOND_EXTRA_HALF',
+                        'PENALTIES',
+                        'EXTRA_HALF_TIME',
                         'PLAYED',
                     ],
                 },
@@ -222,6 +231,41 @@ export class MatchesService {
         return matchUpdate;
     }
 
+    async startFirstExtraHalf(matchId: string) {
+        return this.startKnockoutPeriod(matchId, ['PLAYING_SECOND_HALF'], 'PLAYING_FIRST_EXTRA_HALF');
+    }
+
+    async endFirstExtraHalf(matchId: string) {
+        return this.startKnockoutPeriod(matchId, ['PLAYING_FIRST_EXTRA_HALF'], 'EXTRA_HALF_TIME');
+    }
+
+    async startSecondExtraHalf(matchId: string) {
+        return this.startKnockoutPeriod(matchId, ['PLAYING_FIRST_EXTRA_HALF', 'EXTRA_HALF_TIME'], 'PLAYING_SECOND_EXTRA_HALF');
+    }
+
+    async startPenalties(matchId: string) {
+        return this.startKnockoutPeriod(matchId, ['PLAYING_SECOND_HALF', 'PLAYING_SECOND_EXTRA_HALF'], 'PENALTIES');
+    }
+
+    private async startKnockoutPeriod(matchId: string, previous: match_status[], status: match_status) {
+        const match = await this.findById(matchId);
+        if (!isKnockoutJournal(match.journal)) {
+            throw new BadRequestException('La prorroga y los penales requieren eliminacion directa');
+        }
+        if (!previous.includes(match.status)) {
+            throw new BadRequestException('El estado actual no permite iniciar este periodo');
+        }
+        if (['PLAYING_FIRST_EXTRA_HALF', 'PENALTIES'].includes(status) && match.home_score !== match.away_score) {
+            throw new BadRequestException('El partido debe estar empatado para iniciar prorroga o penales');
+        }
+        const updated = await this.prisma.matches.update({
+            where: { id: matchId },
+            data: { status },
+        });
+        this.live.broadcastMatchPeriodStart(matchId, status);
+        return updated;
+    }
+
     async updateObservationDuringMatch(
         matchId: string,
         observations?: string,
@@ -235,8 +279,7 @@ export class MatchesService {
         }
 
         if (
-            match.status !== 'PLAYING_FIRST_HALF' &&
-            match.status !== 'PLAYING_SECOND_HALF'
+            !PLAYING_STATUSES.includes(match.status)
         ) {
             throw new BadRequestException(
                 'Solo se puede editar la observacion durante el partido',
@@ -269,9 +312,9 @@ export class MatchesService {
                     throw new NotFoundException('Partido no encontrado');
                 }
 
-                if(match.status !== 'PLAYING_SECOND_HALF'){
+                if(!['PLAYING_SECOND_HALF', 'PLAYING_SECOND_EXTRA_HALF', 'PENALTIES'].includes(match.status)){
                     throw new BadRequestException(
-                        'Solo los partidos en segundo tiempo pueden terminar'
+                        'Solo se puede terminar en segundo tiempo, segundo tiempo extra o penales'
                     );
                 }
 
@@ -357,6 +400,23 @@ export class MatchesService {
                 observations,
             },
         });
+    }
+
+    private readonly penaltyEventsInclude = {
+        match_events: {
+            where: { event_type: { in: ['PENALTY_CONVERTED', 'PENALTY_MISSED'] as import('@prisma/client').match_event_type[] } },
+            select: { team_id: true, event_type: true },
+        },
+    };
+
+    private withPenaltyScores<T extends { status: string; home_team_id: string; away_team_id: string; match_events: { team_id: string; event_type: string }[] }>(match: T) {
+        const { match_events: events = [], ...result } = match;
+        const hasPenalties = match.status === 'PENALTIES' || (match.status === 'PLAYED' && events.length > 0);
+        return {
+            ...result,
+            home_penalty_score: hasPenalties ? events.filter(e => e.team_id === match.home_team_id && e.event_type === 'PENALTY_CONVERTED').length : null,
+            away_penalty_score: hasPenalties ? events.filter(e => e.team_id === match.away_team_id && e.event_type === 'PENALTY_CONVERTED').length : null,
+        };
     }
 
     private normalizeJournal(journal: string) {

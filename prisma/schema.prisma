@@ -33,7 +33,7 @@ model match_events {
   match_id                                        String           @db.Uuid
   team_id                                         String           @db.Uuid
   player_id                                       String           @db.Uuid
-  minute                                          String           @db.VarChar(12)
+  minute                                          String?          @db.VarChar(12)
   event_type                                      match_event_type
   related_player_id                               String?          @db.Uuid
   matches                                         matches          @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_match_events_match")
@@ -442,6 +442,8 @@ enum match_event_type {
   SUB_IN
   SUB_OUT
   OWN_GOAL
+  PENALTY_CONVERTED
+  PENALTY_MISSED
 }
 
 enum match_status {
@@ -449,6 +451,10 @@ enum match_status {
   PLAYING_FIRST_HALF
   HALF_TIME
   PLAYING_SECOND_HALF
+  PLAYING_FIRST_EXTRA_HALF
+  PLAYING_SECOND_EXTRA_HALF
+  EXTRA_HALF_TIME
+  PENALTIES
   PLAYED
   CANCELED
 }
